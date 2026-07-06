@@ -12,6 +12,7 @@ class AnalysisScreen extends StatefulWidget {
 class _AnalysisScreenState extends State<AnalysisScreen> {
   String club = "パター";
 
+  final stimpController = TextEditingController(text: "10.0");
   final speedController = TextEditingController();
   final angleController = TextEditingController();
   final spinController = TextEditingController();
@@ -19,6 +20,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
 
   @override
   void dispose() {
+    stimpController.dispose();
     speedController.dispose();
     angleController.dispose();
     spinController.dispose();
@@ -50,8 +52,24 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
             const SizedBox(height: 20),
 
             TextField(
+              controller: stimpController,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              decoration: const InputDecoration(
+                labelText: "グリーンスピード（Stimp）",
+                hintText: "例：10.2",
+                border: OutlineInputBorder(),
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            TextField(
               controller: speedController,
-              keyboardType: TextInputType.number,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               decoration: const InputDecoration(
                 labelText: "ボール初速 (m/s)",
                 border: OutlineInputBorder(),
@@ -62,7 +80,9 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
 
             TextField(
               controller: angleController,
-              keyboardType: TextInputType.number,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               decoration: const InputDecoration(
                 labelText: "打ち出し角 (°)",
                 border: OutlineInputBorder(),
@@ -73,7 +93,9 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
 
             TextField(
               controller: spinController,
-              keyboardType: TextInputType.number,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               decoration: const InputDecoration(
                 labelText: "順回転 (rpm)",
                 border: OutlineInputBorder(),
@@ -84,7 +106,9 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
 
             TextField(
               controller: sideSpinController,
-              keyboardType: TextInputType.number,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               decoration: const InputDecoration(
                 labelText: "横回転 (rpm)",
                 border: OutlineInputBorder(),
@@ -97,6 +121,8 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
               height: 55,
               child: ElevatedButton(
                 onPressed: () {
+                  final stimp = double.tryParse(stimpController.text) ?? 10.0;
+
                   final speed = double.tryParse(speedController.text) ?? 0.0;
 
                   final angle = double.tryParse(angleController.text) ?? 0.0;
