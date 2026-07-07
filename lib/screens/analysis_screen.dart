@@ -11,6 +11,8 @@ class AnalysisScreen extends StatefulWidget {
 
 class _AnalysisScreenState extends State<AnalysisScreen> {
   String club = "パター";
+  String grassType = "ベント";
+  String weather = "晴れ";
 
   final stimpController = TextEditingController(text: "10.0");
   final speedController = TextEditingController();
@@ -61,6 +63,44 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                 hintText: "例：10.2",
                 border: OutlineInputBorder(),
               ),
+            ),
+            const SizedBox(height: 20),
+
+            const Text("芝種", style: TextStyle(fontSize: 18)),
+
+            DropdownButton<String>(
+              value: grassType,
+              isExpanded: true,
+              items: const [
+                DropdownMenuItem(value: "ベント", child: Text("ベント")),
+                DropdownMenuItem(value: "高麗", child: Text("高麗")),
+                DropdownMenuItem(value: "ティフトン", child: Text("ティフトン")),
+                DropdownMenuItem(value: "バミューダ", child: Text("バミューダ")),
+              ],
+              onChanged: (value) {
+                setState(() {
+                  grassType = value!;
+                });
+              },
+            ),
+
+            const SizedBox(height: 20),
+
+            const Text("天候", style: TextStyle(fontSize: 18)),
+
+            DropdownButton<String>(
+              value: weather,
+              isExpanded: true,
+              items: const [
+                DropdownMenuItem(value: "晴れ", child: Text("晴れ")),
+                DropdownMenuItem(value: "曇り", child: Text("曇り")),
+                DropdownMenuItem(value: "雨", child: Text("雨")),
+              ],
+              onChanged: (value) {
+                setState(() {
+                  weather = value!;
+                });
+              },
             ),
 
             const SizedBox(height: 20),
@@ -122,7 +162,8 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
               child: ElevatedButton(
                 onPressed: () {
                   final stimp = double.tryParse(stimpController.text) ?? 10.0;
-
+                  final selectedGrass = grassType;
+                  final selectedWeather = weather;
                   final speed = double.tryParse(speedController.text) ?? 0.0;
 
                   final angle = double.tryParse(angleController.text) ?? 0.0;
@@ -138,6 +179,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                     launchAngle: angle,
                     forwardSpin: forwardSpin,
                     sideSpin: sideSpin,
+                    stimp: stimp,
                   );
 
                   Navigator.push(

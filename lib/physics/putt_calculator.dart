@@ -13,15 +13,17 @@ class PuttCalculator {
 
   // グリーン摩擦係数（まずは固定）
   static const double mu = 0.08;
-
   static PuttResult calculate({
     required double speed,
     required double launchAngle,
     required double forwardSpin,
     required double sideSpin,
+    required double stimp,
   }) {
     // 減速度
-    double deceleration = mu * g;
+    double stimpFactor = 10.0 / stimp;
+
+    double deceleration = mu * stimpFactor * g;
 
     // 停止時間
     double stopTime = speed / deceleration;
