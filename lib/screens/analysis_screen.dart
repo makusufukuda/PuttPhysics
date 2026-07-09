@@ -180,6 +180,8 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                     forwardSpin: forwardSpin,
                     sideSpin: sideSpin,
                     stimp: stimp,
+                    grassType: grassType,
+                    weather: weather,
                   );
 
                   Navigator.push(
