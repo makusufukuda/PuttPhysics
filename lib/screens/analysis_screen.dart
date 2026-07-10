@@ -19,6 +19,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   final angleController = TextEditingController();
   final spinController = TextEditingController();
   final sideSpinController = TextEditingController();
+  final slopeController = TextEditingController(text: "0.0");
 
   @override
   void dispose() {
@@ -28,6 +29,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     spinController.dispose();
     sideSpinController.dispose();
     super.dispose();
+    slopeController.dispose();
   }
 
   @override
@@ -61,6 +63,19 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
               decoration: const InputDecoration(
                 labelText: "グリーンスピード（Stimp）",
                 hintText: "例：10.2",
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            TextField(
+              controller: slopeController,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              decoration: const InputDecoration(
+                labelText: "傾斜 (%)",
+                hintText: "上り:+1.0 下り:-1.0",
                 border: OutlineInputBorder(),
               ),
             ),
