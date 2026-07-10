@@ -27,6 +27,7 @@ class PuttCalculator {
     required String grassType,
     required String weather,
     required double slope,
+    required String grain,
   }) {
     // 減速度
     double stimpFactor = 10.0 / stimp;
@@ -47,7 +48,13 @@ class PuttCalculator {
     } else if (weather == "曇り") {
       weatherFactor = 1.05;
     }
+    double grainFactor = 1.0;
 
+    if (grain == "順目") {
+      grainFactor = 1.10;
+    } else if (grain == "逆目") {
+      grainFactor = 0.90;
+    }
     double slopeFactor = 1.0 + (slope * 0.15);
     double deceleration =
         mu * stimpFactor * grassFactor * weatherFactor * slopeFactor * g;
@@ -55,9 +62,14 @@ class PuttCalculator {
     // 停止時間
     double stopTime = speed / deceleration;
     double spinFactor = 1.0 + (forwardSpin / 1000.0);
+    double angleFactor = 1.0 + (launchAngle * 0.03);
 
     // 転がり距離
-    double distance = (speed * speed / (2 * deceleration)) * spinFactor;
+    double distance =
+        (speed * speed / (2 * deceleration)) *
+        spinFactor *
+        angleFactor *
+        grainFactor;
     // 横ズレ量
     double breakAmount = sideSpin * 0.001;
 

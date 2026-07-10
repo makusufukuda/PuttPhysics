@@ -13,6 +13,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   String club = "パター";
   String grassType = "ベント";
   String weather = "晴れ";
+  String grain = "普通";
 
   final stimpController = TextEditingController(text: "10.0");
   final speedController = TextEditingController();
@@ -117,6 +118,24 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                 });
               },
             ),
+            const SizedBox(height: 20),
+
+            const Text("芝目", style: TextStyle(fontSize: 18)),
+
+            DropdownButton<String>(
+              value: grain,
+              isExpanded: true,
+              items: const [
+                DropdownMenuItem(value: "順目", child: Text("順目")),
+                DropdownMenuItem(value: "普通", child: Text("普通")),
+                DropdownMenuItem(value: "逆目", child: Text("逆目")),
+              ],
+              onChanged: (value) {
+                setState(() {
+                  grain = value!;
+                });
+              },
+            ),
 
             const SizedBox(height: 20),
 
@@ -199,6 +218,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                     grassType: grassType,
                     weather: weather,
                     slope: slope,
+                    grain: grain,
                   );
 
                   Navigator.push(
