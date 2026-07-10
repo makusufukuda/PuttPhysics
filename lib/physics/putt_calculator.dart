@@ -3,8 +3,13 @@ import 'dart:math';
 class PuttResult {
   final double distance;
   final double stopTime;
+  final double breakAmount;
 
-  PuttResult({required this.distance, required this.stopTime});
+  PuttResult({
+    required this.distance,
+    required this.stopTime,
+    required this.breakAmount,
+  });
 }
 
 class PuttCalculator {
@@ -21,6 +26,7 @@ class PuttCalculator {
     required double stimp,
     required String grassType,
     required String weather,
+    required double slope,
   }) {
     // 減速度
     double stimpFactor = 10.0 / stimp;
@@ -42,7 +48,9 @@ class PuttCalculator {
       weatherFactor = 1.05;
     }
 
-    double deceleration = mu * stimpFactor * grassFactor * weatherFactor * g;
+    double slopeFactor = 1.0 + (slope * 0.15);
+    double deceleration =
+        mu * stimpFactor * grassFactor * weatherFactor * slopeFactor * g;
 
     // 停止時間
     double stopTime = speed / deceleration;
@@ -50,7 +58,13 @@ class PuttCalculator {
 
     // 転がり距離
     double distance = (speed * speed / (2 * deceleration)) * spinFactor;
+    // 横ズレ量
+    double breakAmount = sideSpin * 0.001;
 
-    return PuttResult(distance: distance, stopTime: stopTime);
+    return PuttResult(
+      distance: distance,
+      stopTime: stopTime,
+      breakAmount: breakAmount,
+    );
   }
 }

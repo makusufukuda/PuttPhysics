@@ -8,6 +8,7 @@ class ResultScreen extends StatelessWidget {
 
   final double distance;
   final double stopTime;
+  final double breakAmount;
 
   const ResultScreen({
     super.key,
@@ -17,6 +18,7 @@ class ResultScreen extends StatelessWidget {
     required this.sideSpin,
     required this.distance,
     required this.stopTime,
+    required this.breakAmount,
   });
 
   @override
@@ -62,6 +64,12 @@ class ResultScreen extends StatelessWidget {
 
             Text(
               "停止時間：${stopTime.toStringAsFixed(2)} 秒",
+              style: const TextStyle(fontSize: 20),
+            ),
+            const SizedBox(height: 10),
+
+            Text(
+              "推定横ズレ：${(breakAmount * 100).toStringAsFixed(1)} cm",
               style: const TextStyle(fontSize: 20),
             ),
           ],

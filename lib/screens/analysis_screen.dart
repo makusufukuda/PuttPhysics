@@ -28,8 +28,8 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     angleController.dispose();
     spinController.dispose();
     sideSpinController.dispose();
-    super.dispose();
     slopeController.dispose();
+    super.dispose();
   }
 
   @override
@@ -177,6 +177,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
               child: ElevatedButton(
                 onPressed: () {
                   final stimp = double.tryParse(stimpController.text) ?? 10.0;
+                  final slope = double.tryParse(slopeController.text) ?? 0.0;
                   final selectedGrass = grassType;
                   final selectedWeather = weather;
                   final speed = double.tryParse(speedController.text) ?? 0.0;
@@ -197,6 +198,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                     stimp: stimp,
                     grassType: grassType,
                     weather: weather,
+                    slope: slope,
                   );
 
                   Navigator.push(
@@ -209,6 +211,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                         sideSpin: sideSpin,
                         distance: result.distance,
                         stopTime: result.stopTime,
+                        breakAmount: result.breakAmount,
                       ),
                     ),
                   );
