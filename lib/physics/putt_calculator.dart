@@ -46,9 +46,10 @@ class PuttCalculator {
 
     // 停止時間
     double stopTime = speed / deceleration;
+    double spinFactor = 1.0 + (forwardSpin / 1000.0);
 
     // 転がり距離
-    double distance = speed * speed / (2 * deceleration);
+    double distance = (speed * speed / (2 * deceleration)) * spinFactor;
 
     return PuttResult(distance: distance, stopTime: stopTime);
   }
