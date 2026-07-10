@@ -72,6 +72,26 @@ class ResultScreen extends StatelessWidget {
               "推定横ズレ：${(breakAmount * 100).toStringAsFixed(1)} cm",
               style: const TextStyle(fontSize: 20),
             ),
+            const SizedBox(height: 30),
+
+            Container(
+              width: 300,
+              height: 120,
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.black),
+              ),
+              child: Stack(
+                children: [
+                  const Positioned(left: 10, top: 50, child: Text("●")),
+
+                  Positioned(
+                    right: 20,
+                    top: 50 - (breakAmount * 50),
+                    child: const Text("○", style: TextStyle(fontSize: 24)),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
