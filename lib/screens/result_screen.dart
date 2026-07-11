@@ -10,6 +10,7 @@ class ResultScreen extends StatelessWidget {
   final double distance;
   final double stopTime;
   final double breakAmount;
+  final bool cupIn;
 
   const ResultScreen({
     super.key,
@@ -20,6 +21,7 @@ class ResultScreen extends StatelessWidget {
     required this.distance,
     required this.stopTime,
     required this.breakAmount,
+    required this.cupIn,
   });
 
   @override
@@ -72,6 +74,12 @@ class ResultScreen extends StatelessWidget {
             Text(
               "推定横ズレ：${(breakAmount * 100).toStringAsFixed(1)} cm",
               style: const TextStyle(fontSize: 20),
+            ),
+            const SizedBox(height: 10),
+
+            Text(
+              cupIn ? "⛳ カップイン予想" : "❌ カップ外れ予想",
+              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 30),
 

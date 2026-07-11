@@ -4,11 +4,13 @@ class PuttResult {
   final double distance;
   final double stopTime;
   final double breakAmount;
+  final bool cupIn;
 
   PuttResult({
     required this.distance,
     required this.stopTime,
     required this.breakAmount,
+    required this.cupIn,
   });
 }
 
@@ -79,11 +81,13 @@ class PuttCalculator {
     double directionFactor = slopeDirection == "右下り" ? 1.0 : -1.0;
 
     double breakAmount = (spinBreak + slopeBreak) * directionFactor;
+    bool cupIn = (breakAmount.abs() * 100) <= 5.4;
 
     return PuttResult(
       distance: distance,
       stopTime: stopTime,
       breakAmount: breakAmount,
+      cupIn: cupIn,
     );
   }
 }
