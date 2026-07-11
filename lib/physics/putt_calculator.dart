@@ -28,6 +28,7 @@ class PuttCalculator {
     required String weather,
     required double slope,
     required String grain,
+    required String slopeDirection,
   }) {
     // 減速度
     double stimpFactor = 10.0 / stimp;
@@ -75,7 +76,9 @@ class PuttCalculator {
 
     double slopeBreak = slope * distance * 0.002;
 
-    double breakAmount = spinBreak + slopeBreak;
+    double directionFactor = slopeDirection == "右下り" ? 1.0 : -1.0;
+
+    double breakAmount = (spinBreak + slopeBreak) * directionFactor;
 
     return PuttResult(
       distance: distance,
