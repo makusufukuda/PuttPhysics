@@ -112,14 +112,14 @@ class PuttPathPainter extends CustomPainter {
     path.moveTo(20, size.height / 2);
 
     path.cubicTo(
-      size.width * 0.60,
+      size.width * 0.35,
       size.height / 2,
 
-      size.width * 0.85,
-      size.height / 2 - (breakAmount * 250),
+      size.width * 0.90,
+      size.height / 2 - (breakAmount * 300),
 
       size.width - 20,
-      size.height / 2,
+      size.height / 2 - (breakAmount * 300),
     );
 
     canvas.drawPath(path, paint);
