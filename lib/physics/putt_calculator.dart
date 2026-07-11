@@ -71,7 +71,11 @@ class PuttCalculator {
         angleFactor *
         grainFactor;
     // 横ズレ量
-    double breakAmount = sideSpin * 0.001;
+    double spinBreak = sideSpin * stopTime * 0.0002;
+
+    double slopeBreak = slope * distance * 0.002;
+
+    double breakAmount = spinBreak + slopeBreak;
 
     return PuttResult(
       distance: distance,

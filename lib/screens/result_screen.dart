@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:ui';
 
 class ResultScreen extends StatelessWidget {
   final double speed;
@@ -74,27 +75,60 @@ class ResultScreen extends StatelessWidget {
             ),
             const SizedBox(height: 30),
 
-            Container(
-              width: 300,
-              height: 120,
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.black),
-              ),
-              child: Stack(
-                children: [
-                  const Positioned(left: 10, top: 50, child: Text("●")),
-
-                  Positioned(
-                    right: 20,
-                    top: 50 - (breakAmount * 50),
-                    child: const Text("○", style: TextStyle(fontSize: 24)),
-                  ),
-                ],
-              ),
+            SizedBox(
+              width: 320,
+              height: 140,
+              child: CustomPaint(painter: PuttPathPainter(breakAmount)),
             ),
           ],
         ),
       ),
     );
   }
+}
+
+class PuttPathPainter extends CustomPainter {
+  final double breakAmount;
+
+  PuttPathPainter(this.breakAmount);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.green
+      ..strokeWidth = 3
+      ..style = PaintingStyle.stroke;
+
+    final path = Path();
+
+    path.moveTo(20, size.height / 2);
+
+    path.cubicTo(
+      size.width * 0.60,
+      size.height / 2,
+
+      size.width * 0.85,
+      size.height / 2 - (breakAmount * 250),
+
+      size.width - 20,
+      size.height / 2,
+    );
+
+    canvas.drawPath(path, paint);
+
+    final ballPaint = Paint()
+      ..color = Colors.black
+      ..style = PaintingStyle.fill;
+
+    canvas.drawCircle(Offset(20, size.height / 2), 6, ballPaint);
+
+    canvas.drawCircle(
+      Offset(size.width - 20, size.height / 2),
+      8,
+      Paint()..color = Colors.red,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
