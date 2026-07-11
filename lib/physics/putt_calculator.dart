@@ -1,16 +1,16 @@
-import 'dart:math';
-
 class PuttResult {
   final double distance;
   final double stopTime;
   final double breakAmount;
   final bool cupIn;
+  final double cupSpeed;
 
   PuttResult({
     required this.distance,
     required this.stopTime,
     required this.breakAmount,
     required this.cupIn,
+    required this.cupSpeed,
   });
 }
 
@@ -83,11 +83,14 @@ class PuttCalculator {
     double breakAmount = (spinBreak + slopeBreak) * directionFactor;
     bool cupIn = (breakAmount.abs() * 100) <= 5.4;
 
+    double cupSpeed = distance / stopTime;
+
     return PuttResult(
       distance: distance,
       stopTime: stopTime,
       breakAmount: breakAmount,
       cupIn: cupIn,
+      cupSpeed: cupSpeed,
     );
   }
 }

@@ -212,8 +212,6 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                 onPressed: () {
                   final stimp = double.tryParse(stimpController.text) ?? 10.0;
                   final slope = double.tryParse(slopeController.text) ?? 0.0;
-                  final selectedGrass = grassType;
-                  final selectedWeather = weather;
                   final speed = double.tryParse(speedController.text) ?? 0.0;
 
                   final angle = double.tryParse(angleController.text) ?? 0.0;
@@ -249,6 +247,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                         stopTime: result.stopTime,
                         breakAmount: result.breakAmount,
                         cupIn: result.cupIn,
+                        cupSpeed: result.cupSpeed,
                       ),
                     ),
                   );
