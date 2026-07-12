@@ -22,6 +22,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   final spinController = TextEditingController();
   final sideSpinController = TextEditingController();
   final slopeController = TextEditingController(text: "0.0");
+  final targetDistanceController = TextEditingController(text: "3.0");
 
   @override
   void dispose() {
@@ -32,6 +33,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     sideSpinController.dispose();
     slopeController.dispose();
     super.dispose();
+    targetDistanceController.dispose();
   }
 
   @override
@@ -53,6 +55,20 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                   club = value!;
                 });
               },
+            ),
+
+            const SizedBox(height: 20),
+
+            TextField(
+              controller: targetDistanceController,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              decoration: const InputDecoration(
+                labelText: "カップまでの距離 (m)",
+                hintText: "例：3.0",
+                border: OutlineInputBorder(),
+              ),
             ),
 
             const SizedBox(height: 20),
@@ -210,6 +226,8 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
               height: 55,
               child: ElevatedButton(
                 onPressed: () {
+                  final targetDistance =
+                      double.tryParse(targetDistanceController.text) ?? 3.0;
                   final stimp = double.tryParse(stimpController.text) ?? 10.0;
                   final slope = double.tryParse(slopeController.text) ?? 0.0;
                   final speed = double.tryParse(speedController.text) ?? 0.0;
@@ -228,6 +246,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                     forwardSpin: forwardSpin,
                     sideSpin: sideSpin,
                     stimp: stimp,
+                    targetDistance: targetDistance,
                     grassType: grassType,
                     weather: weather,
                     slope: slope,

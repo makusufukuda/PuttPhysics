@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 class PuttResult {
   final double distance;
   final double stopTime;
@@ -26,6 +28,7 @@ class PuttCalculator {
     required double forwardSpin,
     required double sideSpin,
     required double stimp,
+    required double targetDistance,
     required String grassType,
     required String weather,
     required double slope,
@@ -73,17 +76,36 @@ class PuttCalculator {
         spinFactor *
         angleFactor *
         grainFactor;
-    // 横ズレ量
+
+    // 横回転による横ズレ
     double spinBreak = sideSpin * stopTime * 0.0002;
 
+    // 傾斜による横ズレ
     double slopeBreak = slope * distance * 0.002;
 
+    // 傾斜方向
     double directionFactor = slopeDirection == "右下り" ? 1.0 : -1.0;
 
+    // 合計横ズレ
     double breakAmount = (spinBreak + slopeBreak) * directionFactor;
-    bool cupIn = (breakAmount.abs() * 100) <= 5.4;
 
-    double cupSpeed = distance / stopTime;
+    // 各種補正を含めた実効初速
+    final effectiveSpeed = math.sqrt(2 * deceleration * distance);
+
+    // カップ位置での残り速度
+    final remainingSpeedSquared =
+        effectiveSpeed * effectiveSpeed - 2 * deceleration * targetDistance;
+
+    final cupSpeed = remainingSpeedSquared > 0
+        ? math.sqrt(remainingSpeedSquared)
+        : 0.0;
+
+    // カップイン判定
+    final reachedCup = distance >= targetDistance;
+    final withinCupWidth = (breakAmount.abs() * 100) <= 5.4;
+    final acceptableCupSpeed = cupSpeed <= 0.8;
+
+    final cupIn = reachedCup && withinCupWidth && acceptableCupSpeed;
 
     return PuttResult(
       distance: distance,
