@@ -95,13 +95,16 @@ class ResultScreen extends StatelessWidget {
             const SizedBox(height: 10),
 
             Text(
-              cupSpeed < 0.5
+              distance < 3.0
+                  ? "△ ショート"
+                  : cupSpeed < 0.5
                   ? "◎ 理想的なタッチ"
                   : cupSpeed < 1.0
                   ? "○ やや強め"
                   : "❌ 強すぎ",
               style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
+
             const SizedBox(height: 30),
 
             SizedBox(
