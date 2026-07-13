@@ -267,6 +267,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                         breakAmount: result.breakAmount,
                         cupIn: result.cupIn,
                         cupSpeed: result.cupSpeed,
+                        targetDistance: targetDistance,
                       ),
                     ),
                   );

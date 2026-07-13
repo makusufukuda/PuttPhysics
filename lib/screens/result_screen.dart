@@ -11,6 +11,7 @@ class ResultScreen extends StatelessWidget {
   final double breakAmount;
   final bool cupIn;
   final double cupSpeed;
+  final double targetDistance;
 
   const ResultScreen({
     super.key,
@@ -23,6 +24,7 @@ class ResultScreen extends StatelessWidget {
     required this.breakAmount,
     required this.cupIn,
     required this.cupSpeed,
+    required this.targetDistance,
   });
 
   @override
@@ -95,7 +97,7 @@ class ResultScreen extends StatelessWidget {
             const SizedBox(height: 10),
 
             Text(
-              distance < 3.0
+              distance < targetDistance
                   ? "△ ショート"
                   : cupSpeed < 0.5
                   ? "◎ 理想的なタッチ"
