@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 class ResultScreen extends StatelessWidget {
@@ -128,41 +129,111 @@ class PuttPathPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.green
-      ..strokeWidth = 3
-      ..style = PaintingStyle.stroke;
+    const startMargin = 20.0;
+    const steps = 120;
+
+    final startX = startMargin;
+    final endX = size.width - startMargin;
+    final centerY = size.height / 2;
+
+    final availableWidth = endX - startX;
+
+    // 進行方向を少しずつ変化させて軌道を作る
+    final rawPoints = <Offset>[Offset.zero];
+
+    double x = 0.0;
+    double y = 0.0;
+    double heading = 0.0;
+
+    for (int i = 1; i <= steps; i++) {
+      final t = i / steps;
+
+      // 前半はほぼ直進し、後半ほど傾斜の影響を強くする
+      final slowdownEffect = math.pow(t, 3.2).toDouble();
+
+      // breakAmountの符号で左右を決める
+      final direction = breakAmount >= 0 ? -1.0 : 1.0;
+
+      // 進行方向を少しずつ変える
+      heading += direction * slowdownEffect * 0.0018;
+
+      x += math.cos(heading);
+      y += math.sin(heading);
+
+      rawPoints.add(Offset(x, y));
+    }
+
+    final rawEndX = rawPoints.last.dx;
+    final rawEndY = rawPoints.last.dy;
+
+    // 実際の横ズレを画面表示用に拡大
+    double visualBreak = breakAmount.abs() * 2500;
+
+    // 小さな横ズレでも曲線を確認できる最低表示量
+    if (breakAmount.abs() > 0 && visualBreak < 12) {
+      visualBreak = 12;
+    }
+
+    // 画面からはみ出さないよう制限
+    final maxVisualBreak = size.height * 0.35;
+
+    if (visualBreak > maxVisualBreak) {
+      visualBreak = maxVisualBreak;
+    }
 
     final path = Path();
 
-    path.moveTo(20, size.height / 2);
+    for (int i = 0; i < rawPoints.length; i++) {
+      final point = rawPoints[i];
 
-    path.cubicTo(
-      size.width * 0.35,
-      size.height / 2,
+      final normalizedX = rawEndX == 0 ? 0.0 : point.dx / rawEndX;
 
-      size.width * 0.90,
-      size.height / 2 - (breakAmount * 300),
+      final normalizedY = rawEndY == 0 ? 0.0 : point.dy / rawEndY;
 
-      size.width - 20,
-      size.height / 2 - (breakAmount * 300),
+      final screenX = startX + normalizedX * availableWidth;
+
+      // breakAmountが正なら上、負なら下へ表示
+      final signedBreak = breakAmount >= 0 ? -visualBreak : visualBreak;
+
+      final screenY = centerY + normalizedY * signedBreak;
+
+      if (i == 0) {
+        path.moveTo(screenX, screenY);
+      } else {
+        path.lineTo(screenX, screenY);
+      }
+    }
+
+    final pathPaint = Paint()
+      ..color = Colors.green
+      ..strokeWidth = 3
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
+      ..style = PaintingStyle.stroke;
+
+    canvas.drawPath(path, pathPaint);
+
+    // スタート位置
+    canvas.drawCircle(
+      Offset(startX, centerY),
+      6,
+      Paint()
+        ..color = Colors.black
+        ..style = PaintingStyle.fill,
     );
 
-    canvas.drawPath(path, paint);
-
-    final ballPaint = Paint()
-      ..color = Colors.black
-      ..style = PaintingStyle.fill;
-
-    canvas.drawCircle(Offset(20, size.height / 2), 6, ballPaint);
-
+    // カップ位置
     canvas.drawCircle(
-      Offset(size.width - 20, size.height / 2),
+      Offset(endX, centerY),
       8,
-      Paint()..color = Colors.red,
+      Paint()
+        ..color = Colors.red
+        ..style = PaintingStyle.fill,
     );
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+  bool shouldRepaint(covariant PuttPathPainter oldDelegate) {
+    return oldDelegate.breakAmount != breakAmount;
+  }
 }
