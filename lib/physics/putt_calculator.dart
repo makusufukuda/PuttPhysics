@@ -1,5 +1,12 @@
 import 'dart:math' as math;
 
+class PuttPoint {
+  final double x;
+  final double y;
+
+  const PuttPoint({required this.x, required this.y});
+}
+
 class PuttResult {
   final double distance;
   final double stopTime;
@@ -7,12 +14,17 @@ class PuttResult {
   final bool cupIn;
   final double cupSpeed;
 
+  // ←追加
+  final List<PuttPoint> trajectory;
+
   PuttResult({
     required this.distance,
     required this.stopTime,
     required this.breakAmount,
     required this.cupIn,
     required this.cupSpeed,
+    // ←追加
+    this.trajectory = const [],
   });
 }
 
