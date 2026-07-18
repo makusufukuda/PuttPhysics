@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../physics/putt_calculator.dart';
 
@@ -116,7 +115,9 @@ class ResultScreen extends StatelessWidget {
             SizedBox(
               width: 320,
               height: 140,
-              child: CustomPaint(painter: PuttPathPainter(breakAmount)),
+              child: CustomPaint(
+                painter: PuttPathPainter(breakAmount, trajectory),
+              ),
             ),
           ],
         ),
@@ -127,43 +128,25 @@ class ResultScreen extends StatelessWidget {
 
 class PuttPathPainter extends CustomPainter {
   final double breakAmount;
+  final List<PuttPoint> trajectory;
 
-  PuttPathPainter(this.breakAmount);
+  PuttPathPainter(this.breakAmount, this.trajectory);
 
   @override
   void paint(Canvas canvas, Size size) {
     const startMargin = 20.0;
-    const steps = 120;
-
     final startX = startMargin;
     final endX = size.width - startMargin;
     final centerY = size.height / 2;
 
     final availableWidth = endX - startX;
 
-    // 進行方向を少しずつ変化させて軌道を作る
-    final rawPoints = <Offset>[Offset.zero];
+    final rawPoints = trajectory
+        .map((point) => Offset(point.x, point.y))
+        .toList();
 
-    double x = 0.0;
-    double y = 0.0;
-    double heading = 0.0;
-
-    for (int i = 1; i <= steps; i++) {
-      final t = i / steps;
-
-      // 前半はほぼ直進し、後半ほど傾斜の影響を強くする
-      final slowdownEffect = math.pow(t, 3.2).toDouble();
-
-      // breakAmountの符号で左右を決める
-      final direction = breakAmount >= 0 ? -1.0 : 1.0;
-
-      // 進行方向を少しずつ変える
-      heading += direction * slowdownEffect * 0.0018;
-
-      x += math.cos(heading);
-      y += math.sin(heading);
-
-      rawPoints.add(Offset(x, y));
+    if (rawPoints.isEmpty) {
+      return;
     }
 
     final rawEndX = rawPoints.last.dx;
