@@ -119,12 +119,23 @@ class PuttCalculator {
 
     final cupIn = reachedCup && withinCupWidth && acceptableCupSpeed;
 
+    // 仮の軌道点列を生成
+    final trajectory = <PuttPoint>[];
+    const int divisions = 20;
+
+    for (int i = 0; i <= divisions; i++) {
+      final t = i / divisions;
+
+      trajectory.add(PuttPoint(x: distance * t, y: breakAmount * t));
+    }
+
     return PuttResult(
       distance: distance,
       stopTime: stopTime,
       breakAmount: breakAmount,
       cupIn: cupIn,
       cupSpeed: cupSpeed,
+      trajectory: trajectory,
     );
   }
 }
