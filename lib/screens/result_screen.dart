@@ -116,7 +116,11 @@ class ResultScreen extends StatelessWidget {
               width: 320,
               height: 140,
               child: CustomPaint(
-                painter: PuttPathPainter(breakAmount, trajectory),
+                painter: PuttPathPainter(
+                  breakAmount,
+                  targetDistance,
+                  trajectory,
+                ),
               ),
             ),
           ],
@@ -128,9 +132,10 @@ class ResultScreen extends StatelessWidget {
 
 class PuttPathPainter extends CustomPainter {
   final double breakAmount;
+  final double targetDistance;
   final List<PuttPoint> trajectory;
 
-  PuttPathPainter(this.breakAmount, this.trajectory);
+  PuttPathPainter(this.breakAmount, this.targetDistance, this.trajectory);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -140,6 +145,9 @@ class PuttPathPainter extends CustomPainter {
     final centerY = size.height / 2;
 
     final availableWidth = endX - startX;
+    final xScale = targetDistance <= 0.0
+        ? 1.0
+        : availableWidth / targetDistance;
 
     final rawPoints = trajectory
         .map((point) => Offset(point.x, point.y))
@@ -148,9 +156,6 @@ class PuttPathPainter extends CustomPainter {
     if (rawPoints.isEmpty) {
       return;
     }
-
-    final rawEndX = rawPoints.last.dx;
-    final rawEndY = rawPoints.last.dy;
 
     // 実際の横ズレを画面表示用に拡大
     double visualBreak = breakAmount.abs() * 2500;
@@ -167,21 +172,18 @@ class PuttPathPainter extends CustomPainter {
       visualBreak = maxVisualBreak;
     }
 
+    final yScale = xScale;
+
     final path = Path();
 
     for (int i = 0; i < rawPoints.length; i++) {
       final point = rawPoints[i];
 
-      final normalizedX = rawEndX == 0 ? 0.0 : point.dx / rawEndX;
-
-      final normalizedY = rawEndY == 0 ? 0.0 : point.dy / rawEndY;
-
-      final screenX = startX + normalizedX * availableWidth;
+      final screenX = startX + point.dx * xScale;
 
       // breakAmountが正なら上、負なら下へ表示
-      final signedBreak = breakAmount >= 0 ? -visualBreak : visualBreak;
 
-      final screenY = centerY + normalizedY * signedBreak;
+      final screenY = centerY - point.dy * yScale;
 
       if (i == 0) {
         path.moveTo(screenX, screenY);
