@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import '../physics/putt_calculator.dart';
 
 class ResultScreen extends StatelessWidget {
   final double speed;
@@ -13,6 +14,7 @@ class ResultScreen extends StatelessWidget {
   final bool cupIn;
   final double cupSpeed;
   final double targetDistance;
+  final List<PuttPoint> trajectory;
 
   const ResultScreen({
     super.key,
@@ -26,6 +28,7 @@ class ResultScreen extends StatelessWidget {
     required this.cupIn,
     required this.cupSpeed,
     required this.targetDistance,
+    required this.trajectory,
   });
 
   @override

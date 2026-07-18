@@ -268,6 +268,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                         cupIn: result.cupIn,
                         cupSpeed: result.cupSpeed,
                         targetDistance: targetDistance,
+                        trajectory: result.trajectory,
                       ),
                     ),
                   );
