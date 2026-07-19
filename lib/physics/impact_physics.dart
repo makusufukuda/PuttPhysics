@@ -12,11 +12,13 @@ class ImpactPhysics {
   ///                    1.0未満ならエネルギー損失あり
   static double calculateBallSpeed({
     required double headSpeed,
+    double transferCoefficient = 1.65,
     double impactEfficiency = 1.0,
   }) {
     final safeHeadSpeed = math.max(0.0, headSpeed);
+    final safeTransferCoefficient = math.max(0.0, transferCoefficient);
     final safeImpactEfficiency = math.max(0.0, impactEfficiency);
 
-    return safeHeadSpeed * safeImpactEfficiency;
+    return safeHeadSpeed * safeTransferCoefficient * safeImpactEfficiency;
   }
 }
