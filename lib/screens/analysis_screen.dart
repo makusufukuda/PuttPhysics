@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../physics/impact_physics.dart';
 import '../physics/putt_calculator.dart';
 import 'result_screen.dart';
 
@@ -248,6 +249,9 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                   final stimp = double.tryParse(stimpController.text) ?? 10.0;
                   final slope = double.tryParse(slopeController.text) ?? 0.0;
                   final speed = double.tryParse(speedController.text) ?? 0.0;
+                  final ballSpeed = ImpactPhysics.calculateBallSpeed(
+                    headSpeed: speed,
+                  );
 
                   final angle = double.tryParse(angleController.text) ?? 0.0;
 
@@ -258,7 +262,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                       double.tryParse(sideSpinController.text) ?? 0.0;
 
                   final result = PuttCalculator.calculate(
-                    speed: speed,
+                    speed: ballSpeed,
                     launchAngle: angle,
                     forwardSpin: forwardSpin,
                     sideSpin: sideSpin,
