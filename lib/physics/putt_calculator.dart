@@ -51,16 +51,13 @@ class PuttCalculator {
     required double slope,
     required String grain,
     required String slopeDirection,
+    required String longitudinalSlopeDirection,
   }) {
-    // 入力値の安全処理
     final safeSpeed = math.max(0.0, speed);
     final safeStimp = math.max(0.1, stimp);
     final safeTargetDistance = math.max(0.0, targetDistance);
 
-    // スティンプ値による補正
-    // スティンプ値が大きいほど速いグリーンになるため、
-    // 減速度が小さくなる
-    final stimpFactor = 10.0 / safeStimp;
+    // スティンプ値から転がり抵抗係数を計算
 
     // 芝種類による補正
     double grassFactor = 1.0;
@@ -90,14 +87,38 @@ class PuttCalculator {
     } else if (grain == '逆目') {
       grainFactor = 0.90;
     }
+    double longitudinalAcceleration = 0.0;
+    double lateralAcceleration = 0.0;
 
-    // 現段階では、傾斜は減速度補正として残す
-    // 横方向の本格的な物理計算は次段階で実装する
-    final slopeFactor = math.max(0.1, 1.0 + (slope * 0.15));
-
+    if (slopeDirection == "右下り") {
+      final theta = math.atan(slope / 100.0);
+      lateralAcceleration = g * math.sin(theta);
+    } else if (slopeDirection == "左下り") {
+      final theta = math.atan(slope / 100.0);
+      lateralAcceleration = -g * math.sin(theta);
+    }
+    if (longitudinalSlopeDirection == "上り") {
+      final theta = math.atan(slope / 100.0);
+      longitudinalAcceleration = g * math.sin(theta);
+    } else if (longitudinalSlopeDirection == "下り") {
+      final theta = math.atan(slope / 100.0);
+      longitudinalAcceleration = -g * math.sin(theta);
+    }
     // 前後方向の一定減速度
-    final deceleration =
-        mu * stimpFactor * grassFactor * weatherFactor * slopeFactor * g;
+    // スティンプ値(ft) → m
+    final stimpDistance = safeStimp * 0.3048;
+
+    // USGA Stimp Meter の初速 (m/s)
+    const launchSpeed = 1.83;
+
+    // スティンプ値から転がり抵抗係数を計算
+    final mu = (launchSpeed * launchSpeed) / (2.0 * g * stimpDistance);
+    final frictionDeceleration = mu * grassFactor * weatherFactor * g;
+
+    final deceleration = math.max(
+      0.01,
+      frictionDeceleration + longitudinalAcceleration,
+    );
 
     // 順回転補正
     final spinFactor = math.max(0.1, 1.0 + (forwardSpin / 1000.0));
@@ -122,20 +143,43 @@ class PuttCalculator {
     double cupSpeed = 0.0;
     bool reachedCup = safeTargetDistance <= 0.0;
 
-    final forwardTrajectory = <PuttPoint>[const PuttPoint(x: 0.0, y: 0.0)];
+    // 停止時間の推定値
+    // 横回転による横加速度を決めるために使用する
+    final estimatedStopTime = deceleration > 0.0
+        ? effectiveSpeed / deceleration
+        : 0.0;
+
+    // 横回転による仮の横ズレ
+    final spinBreak = sideSpin * estimatedStopTime * 0.0002;
+
+    // 横回転による横加速度
+    final spinAcceleration = estimatedStopTime > 0.0
+        ? 2.0 *
+              spinBreak /
+              math.max(estimatedStopTime * estimatedStopTime, 0.0001)
+        : 0.0;
+
+    // 左右傾斜の重力加速度と横回転を合成
+    final ay = lateralAcceleration + spinAcceleration;
+
+    final trajectory = <PuttPoint>[const PuttPoint(x: 0.0, y: 0.0)];
 
     int step = 0;
 
     while (vx > 0.0 && deceleration > 0.0 && step < maxSimulationSteps) {
-      // 最後のステップでは、速度が0になるまでの時間だけ進める
+      // 最後のステップでは速度が0になるまでの時間だけ進める
       final stepDuration = math.min(timeStep, vx / deceleration);
 
-      // 一定減速度による次の速度
+      // 次の前後速度
       final nextVx = math.max(0.0, vx - deceleration * stepDuration);
 
+      // 次の横速度
+      final nextVy = vy + ay * stepDuration;
+
       // 区間平均速度を使って位置を更新
-      // これにより停止直前も正確に距離を計算できる
       final nextX = x + ((vx + nextVx) / 2.0) * stepDuration;
+
+      final nextY = y + ((vy + nextVy) / 2.0) * stepDuration;
 
       // 今回の時間区間内でカップ位置を通過したか判定
       if (!reachedCup &&
@@ -155,56 +199,6 @@ class PuttCalculator {
 
       time += stepDuration;
       x = nextX;
-      vx = nextVx;
-
-      forwardTrajectory.add(PuttPoint(x: x, y: y));
-
-      step++;
-    }
-
-    // 初速0、または減速度が不正な場合の安全処理
-    if (deceleration <= 0.0) {
-      vx = 0.0;
-    }
-
-    // シミュレーション結果
-    final distance = x;
-    final stopTime = time;
-
-    // 横回転による仮の横ズレ
-    final spinBreak = sideSpin * stopTime * 0.0002;
-
-    // 傾斜による仮の横ズレ
-    final slopeBreak = slope * distance * 0.002;
-
-    // 傾斜方向
-    final directionFactor = slopeDirection == '右下り' ? 1.0 : -1.0;
-
-    // 合計横ズレ
-    final breakAmount = (spinBreak + slopeBreak) * directionFactor;
-
-    final ay = 2.0 * breakAmount / math.max(stopTime * stopTime, 0.0001);
-    time = 0.0;
-    x = 0.0;
-    y = 0.0;
-    vx = effectiveSpeed;
-    vy = 0.0;
-    step = 0;
-
-    // 前後シミュレーションの各点に、
-    // 現在の仮の横ズレを割り当てる
-    final trajectory = <PuttPoint>[const PuttPoint(x: 0.0, y: 0.0)];
-    while (vx > 0.0 && deceleration > 0.0 && step < maxSimulationSteps) {
-      final stepDuration = math.min(timeStep, vx / deceleration);
-
-      final nextVx = math.max(0.0, vx - deceleration * stepDuration);
-      final nextVy = vy + ay * stepDuration;
-
-      final nextX = x + ((vx + nextVx) / 2.0) * stepDuration;
-      final nextY = y + ((vy + nextVy) / 2.0) * stepDuration;
-
-      time += stepDuration;
-      x = nextX;
       y = nextY;
       vx = nextVx;
       vy = nextVy;
@@ -213,6 +207,12 @@ class PuttCalculator {
 
       step++;
     }
+
+    // シミュレーション結果
+    final distance = x;
+    final stopTime = time;
+    final breakAmount = y;
+
     // カップ幅判定
     // カップ直径10.8cmの半分を許容幅とする
     final withinCupWidth = (breakAmount.abs() * 100.0) <= 5.4;

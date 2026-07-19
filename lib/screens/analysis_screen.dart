@@ -14,7 +14,8 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   String grassType = "ベント";
   String weather = "晴れ";
   String grain = "普通";
-  String slopeDirection = "右下り";
+  String slopeDirection = "平坦";
+  String longitudinalSlopeDirection = "平坦";
 
   final stimpController = TextEditingController(text: "10.0");
   final speedController = TextEditingController();
@@ -153,12 +154,28 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                 });
               },
             ),
+
+            DropdownButton<String>(
+              value: longitudinalSlopeDirection,
+              isExpanded: true,
+              items: const [
+                DropdownMenuItem(value: "平坦", child: Text("平坦")),
+                DropdownMenuItem(value: "上り", child: Text("上り")),
+                DropdownMenuItem(value: "下り", child: Text("下り")),
+              ],
+              onChanged: (value) {
+                setState(() {
+                  longitudinalSlopeDirection = value!;
+                });
+              },
+            ),
             const SizedBox(height: 10),
 
             DropdownButton<String>(
               value: slopeDirection,
               isExpanded: true,
               items: const [
+                DropdownMenuItem(value: "平坦", child: Text("平坦")),
                 DropdownMenuItem(value: "右下り", child: Text("右下り")),
                 DropdownMenuItem(value: "左下り", child: Text("左下り")),
               ],
@@ -252,6 +269,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                     slope: slope,
                     grain: grain,
                     slopeDirection: slopeDirection,
+                    longitudinalSlopeDirection: longitudinalSlopeDirection,
                   );
 
                   Navigator.push(
