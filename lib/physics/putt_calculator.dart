@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'package:flutter/foundation.dart';
 
 class PuttPoint {
   final double x;
@@ -48,10 +49,9 @@ class PuttCalculator {
     required double targetDistance,
     required String grassType,
     required String weather,
-    required double slope,
+    required double longitudinalSlope,
+    required double lateralSlope,
     required String grain,
-    required String slopeDirection,
-    required String longitudinalSlopeDirection,
   }) {
     final safeSpeed = math.max(0.0, speed);
     final safeStimp = math.max(0.1, stimp);
@@ -87,23 +87,12 @@ class PuttCalculator {
     } else if (grain == '逆目') {
       grainFactor = 0.90;
     }
-    double longitudinalAcceleration = 0.0;
-    double lateralAcceleration = 0.0;
+    final longitudinalTheta = math.atan(longitudinalSlope / 100.0);
+    final lateralTheta = math.atan(lateralSlope / 100.0);
 
-    if (slopeDirection == "右下り") {
-      final theta = math.atan(slope / 100.0);
-      lateralAcceleration = g * math.sin(theta);
-    } else if (slopeDirection == "左下り") {
-      final theta = math.atan(slope / 100.0);
-      lateralAcceleration = -g * math.sin(theta);
-    }
-    if (longitudinalSlopeDirection == "上り") {
-      final theta = math.atan(slope / 100.0);
-      longitudinalAcceleration = g * math.sin(theta);
-    } else if (longitudinalSlopeDirection == "下り") {
-      final theta = math.atan(slope / 100.0);
-      longitudinalAcceleration = -g * math.sin(theta);
-    }
+    final longitudinalAcceleration = g * math.sin(longitudinalTheta);
+
+    final lateralAcceleration = g * math.sin(lateralTheta);
     // 前後方向の一定減速度
     // スティンプ値(ft) → m
     final stimpDistance = safeStimp * 0.3048;
@@ -113,13 +102,18 @@ class PuttCalculator {
 
     // スティンプ値から転がり抵抗係数を計算
     final mu = (launchSpeed * launchSpeed) / (2.0 * g * stimpDistance);
-    final frictionDeceleration = mu * grassFactor * weatherFactor * g;
+    final frictionDeceleration =
+        mu * grassFactor * weatherFactor * grainFactor * g;
 
     final deceleration = math.max(
       0.01,
       frictionDeceleration + longitudinalAcceleration,
     );
-
+    debugPrint(
+      '摩擦:${frictionDeceleration.toStringAsFixed(4)} '
+      '前後重力:${longitudinalAcceleration.toStringAsFixed(4)} '
+      '減速度:${deceleration.toStringAsFixed(4)}',
+    );
     // 順回転補正
     final spinFactor = math.max(0.1, 1.0 + (forwardSpin / 1000.0));
 
@@ -128,8 +122,7 @@ class PuttCalculator {
 
     // 従来の計算結果との連続性を保つため、
     // 各補正を実効初速に変換する
-    final effectiveSpeed =
-        safeSpeed * math.sqrt(spinFactor * angleFactor * grainFactor);
+    final effectiveSpeed = safeSpeed * math.sqrt(spinFactor * angleFactor);
 
     // 前後方向シミュレーション初期値
     double time = 0.0;
@@ -160,22 +153,46 @@ class PuttCalculator {
         : 0.0;
 
     // 左右傾斜の重力加速度と横回転を合成
-    final ay = lateralAcceleration + spinAcceleration;
 
     final trajectory = <PuttPoint>[const PuttPoint(x: 0.0, y: 0.0)];
 
     int step = 0;
 
-    while (vx > 0.0 && deceleration > 0.0 && step < maxSimulationSteps) {
-      // 最後のステップでは速度が0になるまでの時間だけ進める
-      final stepDuration = math.min(timeStep, vx / deceleration);
+    while (step < maxSimulationSteps) {
+      // 現在の速度ベクトルの大きさ
+      final speed = math.sqrt(vx * vx + vy * vy);
 
-      // 次の前後速度
-      final nextVx = math.max(0.0, vx - deceleration * stepDuration);
+      // 速度が十分小さければ停止
+      if (speed <= 0.0001) {
+        break;
+      }
 
-      // 次の横速度
-      final nextVy = vy + ay * stepDuration;
+      // 摩擦は現在の速度ベクトルと反対方向に作用する
+      final frictionAx = -frictionDeceleration * vx / speed;
+      final frictionAy = -frictionDeceleration * vy / speed;
 
+      // 傾斜による前後加速度と摩擦を合成
+      final ax = frictionAx - longitudinalAcceleration;
+
+      // 左右傾斜・横回転・摩擦を合成
+      final totalAy = lateralAcceleration + spinAcceleration + frictionAy;
+
+      // 1ステップ内で速度が反転しない時間に制限
+      final stoppingTime = speed / frictionDeceleration;
+
+      final stepDuration = math.min(timeStep, stoppingTime);
+
+      // 次の速度
+      var nextVx = vx + ax * stepDuration;
+      var nextVy = vy + totalAy * stepDuration;
+
+      // 摩擦によって進行方向が完全に反転した場合は停止させる
+      final velocityDotProduct = vx * nextVx + vy * nextVy;
+
+      if (velocityDotProduct <= 0.0) {
+        nextVx = 0.0;
+        nextVy = 0.0;
+      }
       // 区間平均速度を使って位置を更新
       final nextX = x + ((vx + nextVx) / 2.0) * stepDuration;
 
@@ -187,9 +204,10 @@ class PuttCalculator {
           nextX >= safeTargetDistance) {
         final distanceToCup = safeTargetDistance - x;
 
-        final remainingSpeedSquared =
-            vx * vx - 2.0 * deceleration * distanceToCup;
+        final currentSpeedSquared = vx * vx + vy * vy;
 
+        final remainingSpeedSquared =
+            currentSpeedSquared - 2.0 * frictionDeceleration * distanceToCup;
         cupSpeed = remainingSpeedSquared > 0.0
             ? math.sqrt(remainingSpeedSquared)
             : 0.0;

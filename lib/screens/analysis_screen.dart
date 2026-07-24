@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../physics/impact_physics.dart';
 import '../physics/putt_calculator.dart';
 import 'result_screen.dart';
+import 'package:putt_physics_v1/physics/slope_converter.dart';
 
 class AnalysisScreen extends StatefulWidget {
   const AnalysisScreen({super.key});
@@ -24,6 +25,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   final spinController = TextEditingController();
   final sideSpinController = TextEditingController();
   final slopeController = TextEditingController(text: "0.0");
+  final slopeHourController = TextEditingController(text: "12");
   final targetDistanceController = TextEditingController(text: "3.0");
 
   @override
@@ -95,7 +97,20 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
               ),
               decoration: const InputDecoration(
                 labelText: "傾斜 (%)",
-                hintText: "上り:+1.0 下り:-1.0",
+                hintText: "例: 1.0",
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            TextField(
+              controller: slopeHourController,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              decoration: const InputDecoration(
+                labelText: "傾斜方向（時計）",
+                hintText: "例: 12、3、6、9",
                 border: OutlineInputBorder(),
               ),
             ),
@@ -248,6 +263,20 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                       double.tryParse(targetDistanceController.text) ?? 3.0;
                   final stimp = double.tryParse(stimpController.text) ?? 10.0;
                   final slope = double.tryParse(slopeController.text) ?? 0.0;
+
+                  final directionHour =
+                      double.tryParse(slopeHourController.text) ?? 12.0;
+
+                  final convertedSlope = SlopeConverter.convert(
+                    directionHour: directionHour,
+                    slopePercent: slope,
+                  );
+                  debugPrint(
+                    '時計:$directionHour時 '
+                    '前後:${convertedSlope.longitudinalSlope.toStringAsFixed(2)}% '
+                    '左右:${convertedSlope.lateralSlope.toStringAsFixed(2)}%',
+                  );
+
                   final speed = double.tryParse(speedController.text) ?? 0.0;
                   final ballSpeed = ImpactPhysics.calculateBallSpeed(
                     headSpeed: speed,
@@ -270,10 +299,9 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                     targetDistance: targetDistance,
                     grassType: grassType,
                     weather: weather,
-                    slope: slope,
+                    longitudinalSlope: convertedSlope.longitudinalSlope,
+                    lateralSlope: convertedSlope.lateralSlope,
                     grain: grain,
-                    slopeDirection: slopeDirection,
-                    longitudinalSlopeDirection: longitudinalSlopeDirection,
                   );
 
                   Navigator.push(
