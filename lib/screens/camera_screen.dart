@@ -12,6 +12,7 @@ class _CameraScreenState extends State<CameraScreen> {
   CameraController? _cameraController;
   Future<void>? _initializeCameraFuture;
   String? _errorMessage;
+  bool _isRecording = false;
 
   @override
   void initState() {
@@ -53,9 +54,76 @@ class _CameraScreenState extends State<CameraScreen> {
       if (mounted) {
         setState(() {
           _errorMessage =
-              'カメラの初期化に失敗しました。\n${error.code}: ${error.description ?? ''}';
+              'カメラの初期化に失敗しました。\n'
+              '${error.code}: ${error.description ?? ''}';
         });
       }
+    }
+  }
+
+  Future<void> _startRecording() async {
+    final controller = _cameraController;
+
+    if (controller == null || !controller.value.isInitialized || _isRecording) {
+      return;
+    }
+
+    try {
+      await controller.startVideoRecording();
+
+      if (mounted) {
+        setState(() {
+          _isRecording = true;
+        });
+      }
+    } on CameraException catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '録画を開始できませんでした。\n'
+            '${error.code}: ${error.description ?? ''}',
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _stopRecording() async {
+    final controller = _cameraController;
+
+    if (controller == null || !_isRecording) {
+      return;
+    }
+
+    try {
+      final videoFile = await controller.stopVideoRecording();
+
+      if (mounted) {
+        setState(() {
+          _isRecording = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('録画を保存しました。\n${videoFile.path}')),
+        );
+      }
+    } on CameraException catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '録画を停止できませんでした。\n'
+            '${error.code}: ${error.description ?? ''}',
+          ),
+        ),
+      );
     }
   }
 
@@ -70,6 +138,16 @@ class _CameraScreenState extends State<CameraScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('カメラ確認')),
       body: _buildBody(),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          if (_isRecording) {
+            _stopRecording();
+          } else {
+            _startRecording();
+          }
+        },
+        child: Icon(_isRecording ? Icons.stop : Icons.videocam),
+      ),
     );
   }
 
