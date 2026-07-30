@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'screens/analysis_screen.dart';
+import 'screens/camera_screen.dart';
 
 void main() {
   runApp(const PuttPhysicsApp());
@@ -58,7 +58,7 @@ class HomeScreen extends StatelessWidget {
                   onPressed: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const AnalysisScreen()),
+                      MaterialPageRoute(builder: (_) => const CameraScreen()),
                     );
                   },
                 ),
