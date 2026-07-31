@@ -1,7 +1,10 @@
 import 'dart:io';
+
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
+
+import 'video_player_view.dart';
 
 class CameraScreen extends StatefulWidget {
   const CameraScreen({super.key});
@@ -11,11 +14,13 @@ class CameraScreen extends StatefulWidget {
 }
 
 class _CameraScreenState extends State<CameraScreen> {
+  static const double _videoFps = 30.0;
   CameraController? _cameraController;
   Future<void>? _initializeCameraFuture;
+  VideoPlayerController? _videoPlayerController;
+
   String? _errorMessage;
   bool _isRecording = false;
-  VideoPlayerController? _videoPlayerController;
 
   @override
   void initState() {
@@ -28,9 +33,11 @@ class _CameraScreenState extends State<CameraScreen> {
       final cameras = await availableCameras();
 
       if (cameras.isEmpty) {
-        setState(() {
-          _errorMessage = '利用できるカメラが見つかりません。';
-        });
+        if (mounted) {
+          setState(() {
+            _errorMessage = '利用できるカメラが見つかりません。';
+          });
+        }
         return;
       }
 
@@ -80,17 +87,9 @@ class _CameraScreenState extends State<CameraScreen> {
         });
       }
     } on CameraException catch (error) {
-      if (!mounted) {
-        return;
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '録画を開始できませんでした。\n'
-            '${error.code}: ${error.description ?? ''}',
-          ),
-        ),
+      _showMessage(
+        '録画を開始できませんでした。\n'
+        '${error.code}: ${error.description ?? ''}',
       );
     }
   }
@@ -112,22 +111,12 @@ class _CameraScreenState extends State<CameraScreen> {
           _isRecording = false;
         });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('録画を保存しました。\n${videoFile.path}')),
-        );
+        _showMessage('録画を保存しました。\n${videoFile.path}');
       }
     } on CameraException catch (error) {
-      if (!mounted) {
-        return;
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '録画を停止できませんでした。\n'
-            '${error.code}: ${error.description ?? ''}',
-          ),
-        ),
+      _showMessage(
+        '録画を停止できませんでした。\n'
+        '${error.code}: ${error.description ?? ''}',
       );
     }
   }
@@ -139,14 +128,15 @@ class _CameraScreenState extends State<CameraScreen> {
 
     await controller.initialize();
 
+    controller.addListener(_onVideoChanged);
     _videoPlayerController = controller;
 
-    controller.addListener(() {
-      if (mounted) {
-        setState(() {});
-      }
-    });
+    if (mounted) {
+      setState(() {});
+    }
+  }
 
+  void _onVideoChanged() {
     if (mounted) {
       setState(() {});
     }
@@ -165,6 +155,7 @@ class _CameraScreenState extends State<CameraScreen> {
       if (controller.value.position >= controller.value.duration) {
         await controller.seekTo(Duration.zero);
       }
+
       await controller.play();
     }
 
@@ -173,8 +164,79 @@ class _CameraScreenState extends State<CameraScreen> {
     }
   }
 
+  Future<void> _seekOneFrame({required bool forward}) async {
+    final controller = _videoPlayerController;
+
+    if (controller == null || !controller.value.isInitialized) {
+      return;
+    }
+
+    await controller.pause();
+
+    final currentMicroseconds = controller.value.position.inMicroseconds;
+
+    final durationMicroseconds = controller.value.duration.inMicroseconds;
+
+    final currentFrame =
+        (currentMicroseconds * _videoFps / Duration.microsecondsPerSecond)
+            .round();
+
+    final totalFrames =
+        (durationMicroseconds * _videoFps / Duration.microsecondsPerSecond)
+            .floor();
+
+    final targetFrame = forward
+        ? (currentFrame + 1).clamp(0, totalFrames)
+        : (currentFrame - 1).clamp(0, totalFrames);
+
+    final targetMicroseconds =
+        (targetFrame * Duration.microsecondsPerSecond / _videoFps).round();
+
+    await controller.seekTo(Duration(microseconds: targetMicroseconds));
+
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  void _showMessage(String message) {
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _handleMainButton() async {
+    final videoController = _videoPlayerController;
+
+    if (videoController != null && videoController.value.isInitialized) {
+      await _toggleVideoPlayback();
+      return;
+    }
+
+    if (_isRecording) {
+      await _stopRecording();
+    } else {
+      await _startRecording();
+    }
+  }
+
+  IconData _mainButtonIcon() {
+    final videoController = _videoPlayerController;
+
+    if (videoController != null && videoController.value.isInitialized) {
+      return videoController.value.isPlaying ? Icons.pause : Icons.play_arrow;
+    }
+
+    return _isRecording ? Icons.stop : Icons.videocam;
+  }
+
   @override
   void dispose() {
+    _videoPlayerController?.removeListener(_onVideoChanged);
     _videoPlayerController?.dispose();
     _cameraController?.dispose();
     super.dispose();
@@ -184,93 +246,23 @@ class _CameraScreenState extends State<CameraScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('カメラ確認')),
-      body: _buildBody(),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          final videoController = _videoPlayerController;
-
-          if (videoController != null && videoController.value.isInitialized) {
-            await _toggleVideoPlayback();
-            return;
-          }
-
-          if (_isRecording) {
-            await _stopRecording();
-          } else {
-            await _startRecording();
-          }
+      body: VideoPlayerView(
+        cameraController: _cameraController,
+        initializeCameraFuture: _initializeCameraFuture,
+        errorMessage: _errorMessage,
+        videoController: _videoPlayerController,
+        videoFps: _videoFps,
+        onPreviousFrame: () {
+          _seekOneFrame(forward: false);
         },
-        child: Icon(
-          _videoPlayerController != null &&
-                  _videoPlayerController!.value.isInitialized
-              ? (_videoPlayerController!.value.isPlaying
-                    ? Icons.pause
-                    : Icons.play_arrow)
-              : (_isRecording ? Icons.stop : Icons.videocam),
-        ),
+        onNextFrame: () {
+          _seekOneFrame(forward: true);
+        },
       ),
-    );
-  }
-
-  Widget _buildBody() {
-    if (_errorMessage != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Text(_errorMessage!, textAlign: TextAlign.center),
-        ),
-      );
-    }
-
-    final controller = _cameraController;
-    final initializeFuture = _initializeCameraFuture;
-
-    if (controller == null || initializeFuture == null) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    return FutureBuilder<void>(
-      future: initializeFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.done &&
-            controller.value.isInitialized) {
-          if (_videoPlayerController != null &&
-              _videoPlayerController!.value.isInitialized) {
-            final videoController = _videoPlayerController!;
-
-            return SafeArea(
-              child: Column(
-                children: [
-                  Expanded(
-                    child: Center(
-                      child: AspectRatio(
-                        aspectRatio: videoController.value.aspectRatio,
-                        child: VideoPlayer(videoController),
-                      ),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 80, 16),
-                    child: VideoProgressIndicator(
-                      videoController,
-                      allowScrubbing: true,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          return Center(child: CameraPreview(controller));
-        }
-
-        if (snapshot.hasError) {
-          return const Center(child: Text('カメラを表示できませんでした。'));
-        }
-
-        return const Center(child: CircularProgressIndicator());
-      },
+      floatingActionButton: FloatingActionButton(
+        onPressed: _handleMainButton,
+        child: Icon(_mainButtonIcon()),
+      ),
     );
   }
 }
