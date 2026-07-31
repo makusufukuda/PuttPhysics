@@ -141,6 +141,12 @@ class _CameraScreenState extends State<CameraScreen> {
 
     _videoPlayerController = controller;
 
+    controller.addListener(() {
+      if (mounted) {
+        setState(() {});
+      }
+    });
+
     if (mounted) {
       setState(() {});
     }
@@ -230,10 +236,28 @@ class _CameraScreenState extends State<CameraScreen> {
             controller.value.isInitialized) {
           if (_videoPlayerController != null &&
               _videoPlayerController!.value.isInitialized) {
-            return Center(
-              child: AspectRatio(
-                aspectRatio: _videoPlayerController!.value.aspectRatio,
-                child: VideoPlayer(_videoPlayerController!),
+            final videoController = _videoPlayerController!;
+
+            return SafeArea(
+              child: Column(
+                children: [
+                  Expanded(
+                    child: Center(
+                      child: AspectRatio(
+                        aspectRatio: videoController.value.aspectRatio,
+                        child: VideoPlayer(videoController),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 80, 16),
+                    child: VideoProgressIndicator(
+                      videoController,
+                      allowScrubbing: true,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ],
               ),
             );
           }
