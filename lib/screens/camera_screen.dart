@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:video_player/video_player.dart';
 
 class CameraScreen extends StatefulWidget {
   const CameraScreen({super.key});
@@ -13,6 +15,7 @@ class _CameraScreenState extends State<CameraScreen> {
   Future<void>? _initializeCameraFuture;
   String? _errorMessage;
   bool _isRecording = false;
+  VideoPlayerController? _videoPlayerController;
 
   @override
   void initState() {
@@ -102,6 +105,8 @@ class _CameraScreenState extends State<CameraScreen> {
     try {
       final videoFile = await controller.stopVideoRecording();
 
+      await _initializeVideoPlayer(videoFile);
+
       if (mounted) {
         setState(() {
           _isRecording = false;
@@ -127,8 +132,44 @@ class _CameraScreenState extends State<CameraScreen> {
     }
   }
 
+  Future<void> _initializeVideoPlayer(XFile videoFile) async {
+    await _videoPlayerController?.dispose();
+
+    final controller = VideoPlayerController.file(File(videoFile.path));
+
+    await controller.initialize();
+
+    _videoPlayerController = controller;
+
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  Future<void> _toggleVideoPlayback() async {
+    final controller = _videoPlayerController;
+
+    if (controller == null || !controller.value.isInitialized) {
+      return;
+    }
+
+    if (controller.value.isPlaying) {
+      await controller.pause();
+    } else {
+      if (controller.value.position >= controller.value.duration) {
+        await controller.seekTo(Duration.zero);
+      }
+      await controller.play();
+    }
+
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
   @override
   void dispose() {
+    _videoPlayerController?.dispose();
     _cameraController?.dispose();
     super.dispose();
   }
@@ -139,14 +180,28 @@ class _CameraScreenState extends State<CameraScreen> {
       appBar: AppBar(title: const Text('カメラ確認')),
       body: _buildBody(),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
+        onPressed: () async {
+          final videoController = _videoPlayerController;
+
+          if (videoController != null && videoController.value.isInitialized) {
+            await _toggleVideoPlayback();
+            return;
+          }
+
           if (_isRecording) {
-            _stopRecording();
+            await _stopRecording();
           } else {
-            _startRecording();
+            await _startRecording();
           }
         },
-        child: Icon(_isRecording ? Icons.stop : Icons.videocam),
+        child: Icon(
+          _videoPlayerController != null &&
+                  _videoPlayerController!.value.isInitialized
+              ? (_videoPlayerController!.value.isPlaying
+                    ? Icons.pause
+                    : Icons.play_arrow)
+              : (_isRecording ? Icons.stop : Icons.videocam),
+        ),
       ),
     );
   }
@@ -173,6 +228,16 @@ class _CameraScreenState extends State<CameraScreen> {
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.done &&
             controller.value.isInitialized) {
+          if (_videoPlayerController != null &&
+              _videoPlayerController!.value.isInitialized) {
+            return Center(
+              child: AspectRatio(
+                aspectRatio: _videoPlayerController!.value.aspectRatio,
+                child: VideoPlayer(_videoPlayerController!),
+              ),
+            );
+          }
+
           return Center(child: CameraPreview(controller));
         }
 
