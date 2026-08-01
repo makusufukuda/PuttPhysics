@@ -1,9 +1,12 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 
+import '../services/frame_extractor.dart';
+import 'frame_preview_dialog.dart';
 import 'video_player_view.dart';
 
 class CameraScreen extends StatefulWidget {
@@ -18,6 +21,7 @@ class _CameraScreenState extends State<CameraScreen> {
   CameraController? _cameraController;
   Future<void>? _initializeCameraFuture;
   VideoPlayerController? _videoPlayerController;
+  String? _recordedVideoPath;
 
   String? _errorMessage;
   bool _isRecording = false;
@@ -103,6 +107,8 @@ class _CameraScreenState extends State<CameraScreen> {
 
     try {
       final videoFile = await controller.stopVideoRecording();
+
+      _recordedVideoPath = videoFile.path;
 
       await _initializeVideoPlayer(videoFile);
 
@@ -199,6 +205,47 @@ class _CameraScreenState extends State<CameraScreen> {
     }
   }
 
+  Future<void> _captureCurrentFrame() async {
+    final videoController = _videoPlayerController;
+    final videoPath = _recordedVideoPath;
+
+    if (videoController == null ||
+        !videoController.value.isInitialized ||
+        videoPath == null) {
+      _showMessage('先に動画を録画してください。');
+      return;
+    }
+
+    await videoController.pause();
+
+    final position = videoController.value.position;
+
+    try {
+      final Uint8List? imageBytes = await FrameExtractor.extractFrame(
+        videoPath: videoPath,
+        position: position,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      if (imageBytes == null || imageBytes.isEmpty) {
+        _showMessage('フレーム画像を取得できませんでした。');
+        return;
+      }
+
+      await showDialog<void>(
+        context: context,
+        builder: (context) {
+          return FramePreviewDialog(imageBytes: imageBytes, position: position);
+        },
+      );
+    } catch (error) {
+      _showMessage('フレーム画像の取得中にエラーが発生しました。\n$error');
+    }
+  }
+
   void _showMessage(String message) {
     if (!mounted) {
       return;
@@ -257,6 +304,9 @@ class _CameraScreenState extends State<CameraScreen> {
         },
         onNextFrame: () {
           _seekOneFrame(forward: true);
+        },
+        onCaptureFrame: () {
+          _captureCurrentFrame();
         },
       ),
       floatingActionButton: FloatingActionButton(

@@ -11,18 +11,20 @@ class VideoPlayerView extends StatelessWidget {
     required this.initializeCameraFuture,
     required this.errorMessage,
     required this.videoController,
+    required this.videoFps,
     required this.onPreviousFrame,
     required this.onNextFrame,
-    required this.videoFps,
+    required this.onCaptureFrame,
   });
 
   final CameraController? cameraController;
   final Future<void>? initializeCameraFuture;
   final String? errorMessage;
   final VideoPlayerController? videoController;
+  final double videoFps;
   final VoidCallback onPreviousFrame;
   final VoidCallback onNextFrame;
-  final double videoFps;
+  final VoidCallback onCaptureFrame;
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +32,10 @@ class VideoPlayerView extends StatelessWidget {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
-          child: Text(errorMessage!, textAlign: TextAlign.center),
+          child: Text(
+            errorMessage!,
+            textAlign: TextAlign.center,
+          ),
         ),
       );
     }
@@ -46,7 +51,9 @@ class VideoPlayerView extends StatelessWidget {
       future: cameraFuture,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
-          return const Center(child: Text('カメラを表示できませんでした。'));
+          return const Center(
+            child: Text('カメラを表示できませんでした。'),
+          );
         }
 
         if (snapshot.connectionState != ConnectionState.done ||
@@ -73,6 +80,7 @@ class VideoPlayerView extends StatelessWidget {
                   videoFps: videoFps,
                   onPreviousFrame: onPreviousFrame,
                   onNextFrame: onNextFrame,
+                  onCaptureFrame: onCaptureFrame,
                 ),
               ],
             ),
