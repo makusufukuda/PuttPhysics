@@ -261,6 +261,12 @@ class _CameraScreenState extends State<CameraScreen> {
             centerValue: imageInfo.centerValue,
             centerIsYellow: imageInfo.centerIsYellow,
             centerIsRed: imageInfo.centerIsRed,
+            totalPixels: imageInfo.totalPixels,
+            yellowPixels: imageInfo.yellowPixels,
+            redPixels: imageInfo.redPixels,
+            targetColorPixels: imageInfo.targetColorPixels,
+            yellowRatio: imageInfo.yellowRatio,
+            redRatio: imageInfo.redRatio,
           );
         },
       );

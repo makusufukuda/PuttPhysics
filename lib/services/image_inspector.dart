@@ -1,7 +1,9 @@
-import 'color_detector.dart';
 import 'dart:typed_data';
 
 import 'package:image/image.dart' as img;
+
+import 'color_detector.dart';
+import 'color_scanner.dart';
 
 class ImageInfoResult {
   const ImageInfoResult({
@@ -17,6 +19,12 @@ class ImageInfoResult {
     required this.centerValue,
     required this.centerIsYellow,
     required this.centerIsRed,
+    required this.totalPixels,
+    required this.yellowPixels,
+    required this.redPixels,
+    required this.targetColorPixels,
+    required this.yellowRatio,
+    required this.redRatio,
   });
 
   final int width;
@@ -28,11 +36,21 @@ class ImageInfoResult {
   final int centerRed;
   final int centerGreen;
   final int centerBlue;
+
   final double centerHue;
   final double centerSaturation;
   final double centerValue;
+
   final bool centerIsYellow;
   final bool centerIsRed;
+
+  final int totalPixels;
+  final int yellowPixels;
+  final int redPixels;
+  final int targetColorPixels;
+
+  final double yellowRatio;
+  final double redRatio;
 }
 
 class ImageInspector {
@@ -48,6 +66,7 @@ class ImageInspector {
     final centerX = image.width ~/ 2;
     final centerY = image.height ~/ 2;
     final centerPixel = image.getPixel(centerX, centerY);
+
     final centerRed = centerPixel.r.toInt();
     final centerGreen = centerPixel.g.toInt();
     final centerBlue = centerPixel.b.toInt();
@@ -57,6 +76,8 @@ class ImageInspector {
       green: centerGreen,
       blue: centerBlue,
     );
+
+    final scanResult = ColorScanner.scan(image);
 
     return ImageInfoResult(
       width: image.width,
@@ -71,6 +92,12 @@ class ImageInspector {
       centerValue: centerHsv.value,
       centerIsYellow: ColorDetector.isYellow(centerHsv),
       centerIsRed: ColorDetector.isRed(centerHsv),
+      totalPixels: scanResult.totalPixels,
+      yellowPixels: scanResult.yellowPixels,
+      redPixels: scanResult.redPixels,
+      targetColorPixels: scanResult.targetColorPixels,
+      yellowRatio: scanResult.yellowRatio,
+      redRatio: scanResult.redRatio,
     );
   }
 }

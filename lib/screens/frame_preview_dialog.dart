@@ -19,22 +19,41 @@ class FramePreviewDialog extends StatelessWidget {
     required this.centerValue,
     required this.centerIsYellow,
     required this.centerIsRed,
+    required this.totalPixels,
+    required this.yellowPixels,
+    required this.redPixels,
+    required this.targetColorPixels,
+    required this.yellowRatio,
+    required this.redRatio,
   });
 
   final Uint8List imageBytes;
   final Duration position;
+
   final int imageWidth;
   final int imageHeight;
+
   final int centerX;
   final int centerY;
+
   final int centerRed;
   final int centerGreen;
   final int centerBlue;
+
   final double centerHue;
   final double centerSaturation;
   final double centerValue;
+
   final bool centerIsYellow;
   final bool centerIsRed;
+
+  final int totalPixels;
+  final int yellowPixels;
+  final int redPixels;
+  final int targetColorPixels;
+
+  final double yellowRatio;
+  final double redRatio;
 
   String _formatPosition(Duration value) {
     final minutes = value.inMinutes.remainder(60).toString().padLeft(2, '0');
@@ -47,12 +66,16 @@ class FramePreviewDialog extends StatelessWidget {
     return '$minutes:$seconds.$milliseconds';
   }
 
+  String _formatPercent(double ratio) {
+    return '${(ratio * 100).toStringAsFixed(3)}%';
+  }
+
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
       title: Text('取得フレーム ${_formatPosition(position)}'),
       content: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 600, maxHeight: 650),
+        constraints: const BoxConstraints(maxWidth: 600, maxHeight: 700),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -74,10 +97,29 @@ class FramePreviewDialog extends StatelessWidget {
               style: Theme.of(context).textTheme.bodySmall,
             ),
             Text(
-              '色判定: '
+              '中央色判定: '
               '${centerIsYellow ? '黄色 ' : ''}'
               '${centerIsRed ? '赤' : ''}'
               '${!centerIsYellow && !centerIsRed ? '対象外' : ''}',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const Divider(height: 20),
+            Text(
+              '全画素数: $totalPixels',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            Text(
+              '黄色画素数: $yellowPixels '
+              '(${_formatPercent(yellowRatio)})',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            Text(
+              '赤色画素数: $redPixels '
+              '(${_formatPercent(redRatio)})',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            Text(
+              '対象色合計: $targetColorPixels',
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 12),
