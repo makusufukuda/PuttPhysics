@@ -14,7 +14,23 @@ class BlobFilter {
   static const double maximumAspectRatio = 1.35;
   static const double minimumFillRatio = 0.45;
 
-  static BallCandidate? createBallCandidate(Blob blob) {
+  static List<BallCandidate> filter(List<Blob> blobs) {
+    final candidates = <BallCandidate>[];
+
+    for (final blob in blobs) {
+      final candidate = _createBallCandidate(blob);
+
+      if (candidate != null) {
+        candidates.add(candidate);
+      }
+    }
+
+    candidates.sort((a, b) => b.confidence.compareTo(a.confidence));
+
+    return candidates;
+  }
+
+  static BallCandidate? _createBallCandidate(Blob blob) {
     if (!_passesSizeCondition(blob)) {
       return null;
     }
@@ -30,6 +46,7 @@ class BlobFilter {
     }
 
     final estimatedRadius = (blob.width + blob.height) / 4.0;
+
     final confidence = _calculateConfidence(
       blob: blob,
       aspectRatio: aspectRatio,
