@@ -2,8 +2,10 @@ import 'dart:typed_data';
 
 import 'package:image/image.dart' as img;
 
+import '../models/ball_candidate.dart';
 import '../models/blob.dart';
 import 'blob_analyzer.dart';
+import 'blob_filter.dart';
 import 'color_detector.dart';
 import 'color_scanner.dart';
 
@@ -29,6 +31,8 @@ class ImageInfoResult {
     required this.redRatio,
     required this.blobCount,
     required this.largestBlob,
+    required this.ballCandidateCount,
+    required this.bestBallCandidate,
   });
 
   final int width;
@@ -58,6 +62,9 @@ class ImageInfoResult {
 
   final int blobCount;
   final Blob? largestBlob;
+
+  final int ballCandidateCount;
+  final BallCandidate? bestBallCandidate;
 }
 
 class ImageInspector {
@@ -101,6 +108,12 @@ class ImageInspector {
       }
     }
 
+    final ballCandidates = BlobFilter.filter(blobs);
+
+    final bestBallCandidate = ballCandidates.isEmpty
+        ? null
+        : ballCandidates.first;
+
     return ImageInfoResult(
       width: image.width,
       height: image.height,
@@ -122,6 +135,8 @@ class ImageInspector {
       redRatio: scanResult.redRatio,
       blobCount: blobs.length,
       largestBlob: largestBlob,
+      ballCandidateCount: ballCandidates.length,
+      bestBallCandidate: bestBallCandidate,
     );
   }
 }

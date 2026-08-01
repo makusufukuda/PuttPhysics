@@ -33,6 +33,11 @@ class FramePreviewDialog extends StatelessWidget {
     required this.largestBlobMinY,
     required this.largestBlobWidth,
     required this.largestBlobHeight,
+    required this.ballCandidateCount,
+    required this.bestCandidateCenterX,
+    required this.bestCandidateCenterY,
+    required this.bestCandidateRadius,
+    required this.bestCandidateConfidence,
   });
 
   final Uint8List imageBytes;
@@ -72,6 +77,12 @@ class FramePreviewDialog extends StatelessWidget {
   final int? largestBlobWidth;
   final int? largestBlobHeight;
 
+  final int ballCandidateCount;
+  final double? bestCandidateCenterX;
+  final double? bestCandidateCenterY;
+  final double? bestCandidateRadius;
+  final double? bestCandidateConfidence;
+
   String _formatPosition(Duration value) {
     final minutes = value.inMinutes.remainder(60).toString().padLeft(2, '0');
     final seconds = value.inSeconds.remainder(60).toString().padLeft(2, '0');
@@ -89,6 +100,11 @@ class FramePreviewDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hasBestCandidate =
+        bestCandidateCenterX != null &&
+        bestCandidateCenterY != null &&
+        bestCandidateRadius != null &&
+        bestCandidateConfidence != null;
     final hasLargestBlob =
         largestBlobPixelCount != null &&
         largestBlobCentroidX != null &&
@@ -170,7 +186,32 @@ class FramePreviewDialog extends StatelessWidget {
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ] else
-              Text('最大Blob: なし', style: Theme.of(context).textTheme.bodySmall),
+              const Divider(height: 20),
+            Text(
+              'BallCandidate候補数: $ballCandidateCount',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            if (hasBestCandidate) ...[
+              Text(
+                '最良候補の中心: '
+                '(${bestCandidateCenterX!.toStringAsFixed(1)}, '
+                '${bestCandidateCenterY!.toStringAsFixed(1)})',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              Text(
+                '推定半径: ${bestCandidateRadius!.toStringAsFixed(1)} px',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              Text(
+                '信頼度: '
+                '${bestCandidateConfidence!.toStringAsFixed(3)} '
+                '(${(bestCandidateConfidence! * 100).toStringAsFixed(1)}%)',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ] else
+              Text('最良候補: なし', style: Theme.of(context).textTheme.bodySmall),
+
+            Text('最大Blob: なし', style: Theme.of(context).textTheme.bodySmall),
             const SizedBox(height: 12),
             Flexible(
               child: InteractiveViewer(

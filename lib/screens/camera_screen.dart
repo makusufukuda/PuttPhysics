@@ -243,6 +243,7 @@ class _CameraScreenState extends State<CameraScreen> {
         return;
       }
       final largestBlob = imageInfo.largestBlob;
+      final bestBallCandidate = imageInfo.bestBallCandidate;
       await showDialog<void>(
         context: context,
         builder: (context) {
@@ -275,6 +276,11 @@ class _CameraScreenState extends State<CameraScreen> {
             largestBlobMinY: largestBlob?.minY,
             largestBlobWidth: largestBlob?.width,
             largestBlobHeight: largestBlob?.height,
+            ballCandidateCount: imageInfo.ballCandidateCount,
+            bestCandidateCenterX: bestBallCandidate?.centerX,
+            bestCandidateCenterY: bestBallCandidate?.centerY,
+            bestCandidateRadius: bestBallCandidate?.radius,
+            bestCandidateConfidence: bestBallCandidate?.confidence,
           );
         },
       );
