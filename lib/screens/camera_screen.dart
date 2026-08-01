@@ -271,6 +271,8 @@ class _CameraScreenState extends State<CameraScreen> {
             largestBlobPixelCount: largestBlob?.pixelCount,
             largestBlobCentroidX: largestBlob?.centroidX,
             largestBlobCentroidY: largestBlob?.centroidY,
+            largestBlobMinX: largestBlob?.minX,
+            largestBlobMinY: largestBlob?.minY,
             largestBlobWidth: largestBlob?.width,
             largestBlobHeight: largestBlob?.height,
           );

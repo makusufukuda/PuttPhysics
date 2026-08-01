@@ -29,6 +29,8 @@ class FramePreviewDialog extends StatelessWidget {
     required this.largestBlobPixelCount,
     required this.largestBlobCentroidX,
     required this.largestBlobCentroidY,
+    required this.largestBlobMinX,
+    required this.largestBlobMinY,
     required this.largestBlobWidth,
     required this.largestBlobHeight,
   });
@@ -65,6 +67,8 @@ class FramePreviewDialog extends StatelessWidget {
   final int? largestBlobPixelCount;
   final double? largestBlobCentroidX;
   final double? largestBlobCentroidY;
+  final int? largestBlobMinX;
+  final int? largestBlobMinY;
   final int? largestBlobWidth;
   final int? largestBlobHeight;
 
@@ -89,6 +93,8 @@ class FramePreviewDialog extends StatelessWidget {
         largestBlobPixelCount != null &&
         largestBlobCentroidX != null &&
         largestBlobCentroidY != null &&
+        largestBlobMinX != null &&
+        largestBlobMinY != null &&
         largestBlobWidth != null &&
         largestBlobHeight != null;
 
@@ -170,10 +176,31 @@ class FramePreviewDialog extends StatelessWidget {
               child: InteractiveViewer(
                 minScale: 0.5,
                 maxScale: 5,
-                child: Image.memory(
-                  imageBytes,
-                  fit: BoxFit.contain,
-                  gaplessPlayback: true,
+                child: AspectRatio(
+                  aspectRatio: imageWidth / imageHeight,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Image.memory(
+                        imageBytes,
+                        fit: BoxFit.fill,
+                        gaplessPlayback: true,
+                      ),
+                      if (hasLargestBlob)
+                        CustomPaint(
+                          painter: _BlobOverlayPainter(
+                            sourceWidth: imageWidth,
+                            sourceHeight: imageHeight,
+                            minX: largestBlobMinX!,
+                            minY: largestBlobMinY!,
+                            blobWidth: largestBlobWidth!,
+                            blobHeight: largestBlobHeight!,
+                            centroidX: largestBlobCentroidX!,
+                            centroidY: largestBlobCentroidY!,
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -189,5 +216,86 @@ class FramePreviewDialog extends StatelessWidget {
         ),
       ],
     );
+  }
+}
+
+class _BlobOverlayPainter extends CustomPainter {
+  const _BlobOverlayPainter({
+    required this.sourceWidth,
+    required this.sourceHeight,
+    required this.minX,
+    required this.minY,
+    required this.blobWidth,
+    required this.blobHeight,
+    required this.centroidX,
+    required this.centroidY,
+  });
+
+  final int sourceWidth;
+  final int sourceHeight;
+
+  final int minX;
+  final int minY;
+  final int blobWidth;
+  final int blobHeight;
+
+  final double centroidX;
+  final double centroidY;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final scaleX = size.width / sourceWidth;
+    final scaleY = size.height / sourceHeight;
+
+    final blobRect = Rect.fromLTWH(
+      minX * scaleX,
+      minY * scaleY,
+      blobWidth * scaleX,
+      blobHeight * scaleY,
+    );
+
+    final rectanglePaint = Paint()
+      ..color = Colors.green
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3;
+
+    canvas.drawRect(blobRect, rectanglePaint);
+
+    final center = Offset(centroidX * scaleX, centroidY * scaleY);
+
+    final centerPaint = Paint()
+      ..color = Colors.red
+      ..style = PaintingStyle.fill;
+
+    canvas.drawCircle(center, 5, centerPaint);
+
+    final crossPaint = Paint()
+      ..color = Colors.red
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+
+    canvas.drawLine(
+      Offset(center.dx - 10, center.dy),
+      Offset(center.dx + 10, center.dy),
+      crossPaint,
+    );
+
+    canvas.drawLine(
+      Offset(center.dx, center.dy - 10),
+      Offset(center.dx, center.dy + 10),
+      crossPaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _BlobOverlayPainter oldDelegate) {
+    return sourceWidth != oldDelegate.sourceWidth ||
+        sourceHeight != oldDelegate.sourceHeight ||
+        minX != oldDelegate.minX ||
+        minY != oldDelegate.minY ||
+        blobWidth != oldDelegate.blobWidth ||
+        blobHeight != oldDelegate.blobHeight ||
+        centroidX != oldDelegate.centroidX ||
+        centroidY != oldDelegate.centroidY;
   }
 }
