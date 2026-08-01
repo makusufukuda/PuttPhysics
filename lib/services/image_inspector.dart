@@ -2,6 +2,8 @@ import 'dart:typed_data';
 
 import 'package:image/image.dart' as img;
 
+import '../models/blob.dart';
+import 'blob_analyzer.dart';
 import 'color_detector.dart';
 import 'color_scanner.dart';
 
@@ -25,6 +27,8 @@ class ImageInfoResult {
     required this.targetColorPixels,
     required this.yellowRatio,
     required this.redRatio,
+    required this.blobCount,
+    required this.largestBlob,
   });
 
   final int width;
@@ -51,10 +55,15 @@ class ImageInfoResult {
 
   final double yellowRatio;
   final double redRatio;
+
+  final int blobCount;
+  final Blob? largestBlob;
 }
 
 class ImageInspector {
   const ImageInspector._();
+
+  static const int _minimumBlobPixelCount = 10;
 
   static ImageInfoResult? inspect(Uint8List imageBytes) {
     final image = img.decodeImage(imageBytes);
@@ -79,6 +88,19 @@ class ImageInspector {
 
     final scanResult = ColorScanner.scan(image);
 
+    final blobs = BlobAnalyzer.extractBlobs(
+      scanResult.mask,
+      minimumPixelCount: _minimumBlobPixelCount,
+    );
+
+    Blob? largestBlob;
+
+    for (final blob in blobs) {
+      if (largestBlob == null || blob.pixelCount > largestBlob.pixelCount) {
+        largestBlob = blob;
+      }
+    }
+
     return ImageInfoResult(
       width: image.width,
       height: image.height,
@@ -98,6 +120,8 @@ class ImageInspector {
       targetColorPixels: scanResult.targetColorPixels,
       yellowRatio: scanResult.yellowRatio,
       redRatio: scanResult.redRatio,
+      blobCount: blobs.length,
+      largestBlob: largestBlob,
     );
   }
 }

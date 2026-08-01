@@ -25,6 +25,12 @@ class FramePreviewDialog extends StatelessWidget {
     required this.targetColorPixels,
     required this.yellowRatio,
     required this.redRatio,
+    required this.blobCount,
+    required this.largestBlobPixelCount,
+    required this.largestBlobCentroidX,
+    required this.largestBlobCentroidY,
+    required this.largestBlobWidth,
+    required this.largestBlobHeight,
   });
 
   final Uint8List imageBytes;
@@ -55,6 +61,13 @@ class FramePreviewDialog extends StatelessWidget {
   final double yellowRatio;
   final double redRatio;
 
+  final int blobCount;
+  final int? largestBlobPixelCount;
+  final double? largestBlobCentroidX;
+  final double? largestBlobCentroidY;
+  final int? largestBlobWidth;
+  final int? largestBlobHeight;
+
   String _formatPosition(Duration value) {
     final minutes = value.inMinutes.remainder(60).toString().padLeft(2, '0');
     final seconds = value.inSeconds.remainder(60).toString().padLeft(2, '0');
@@ -72,10 +85,17 @@ class FramePreviewDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hasLargestBlob =
+        largestBlobPixelCount != null &&
+        largestBlobCentroidX != null &&
+        largestBlobCentroidY != null &&
+        largestBlobWidth != null &&
+        largestBlobHeight != null;
+
     return AlertDialog(
       title: Text('取得フレーム ${_formatPosition(position)}'),
       content: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 600, maxHeight: 700),
+        constraints: const BoxConstraints(maxWidth: 600, maxHeight: 720),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -122,6 +142,29 @@ class FramePreviewDialog extends StatelessWidget {
               '対象色合計: $targetColorPixels',
               style: Theme.of(context).textTheme.bodySmall,
             ),
+            const Divider(height: 20),
+            Text(
+              'Blob候補数: $blobCount',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            if (hasLargestBlob) ...[
+              Text(
+                '最大Blob画素数: $largestBlobPixelCount',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              Text(
+                '重心: '
+                '(${largestBlobCentroidX!.toStringAsFixed(1)}, '
+                '${largestBlobCentroidY!.toStringAsFixed(1)})',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              Text(
+                '外接矩形: '
+                '$largestBlobWidth × $largestBlobHeight px',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ] else
+              Text('最大Blob: なし', style: Theme.of(context).textTheme.bodySmall),
             const SizedBox(height: 12),
             Flexible(
               child: InteractiveViewer(

@@ -242,7 +242,7 @@ class _CameraScreenState extends State<CameraScreen> {
         _showMessage('フレーム画像を読み込めませんでした。');
         return;
       }
-
+      final largestBlob = imageInfo.largestBlob;
       await showDialog<void>(
         context: context,
         builder: (context) {
@@ -267,6 +267,12 @@ class _CameraScreenState extends State<CameraScreen> {
             targetColorPixels: imageInfo.targetColorPixels,
             yellowRatio: imageInfo.yellowRatio,
             redRatio: imageInfo.redRatio,
+            blobCount: imageInfo.blobCount,
+            largestBlobPixelCount: largestBlob?.pixelCount,
+            largestBlobCentroidX: largestBlob?.centroidX,
+            largestBlobCentroidY: largestBlob?.centroidY,
+            largestBlobWidth: largestBlob?.width,
+            largestBlobHeight: largestBlob?.height,
           );
         },
       );
