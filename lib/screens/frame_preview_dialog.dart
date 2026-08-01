@@ -7,18 +7,42 @@ class FramePreviewDialog extends StatelessWidget {
     super.key,
     required this.imageBytes,
     required this.position,
+    required this.imageWidth,
+    required this.imageHeight,
+    required this.centerX,
+    required this.centerY,
+    required this.centerRed,
+    required this.centerGreen,
+    required this.centerBlue,
+    required this.centerHue,
+    required this.centerSaturation,
+    required this.centerValue,
+    required this.centerIsYellow,
+    required this.centerIsRed,
   });
 
   final Uint8List imageBytes;
   final Duration position;
+  final int imageWidth;
+  final int imageHeight;
+  final int centerX;
+  final int centerY;
+  final int centerRed;
+  final int centerGreen;
+  final int centerBlue;
+  final double centerHue;
+  final double centerSaturation;
+  final double centerValue;
+  final bool centerIsYellow;
+  final bool centerIsRed;
 
   String _formatPosition(Duration value) {
-    final minutes =
-        value.inMinutes.remainder(60).toString().padLeft(2, '0');
-    final seconds =
-        value.inSeconds.remainder(60).toString().padLeft(2, '0');
-    final milliseconds =
-        value.inMilliseconds.remainder(1000).toString().padLeft(3, '0');
+    final minutes = value.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final seconds = value.inSeconds.remainder(60).toString().padLeft(2, '0');
+    final milliseconds = value.inMilliseconds
+        .remainder(1000)
+        .toString()
+        .padLeft(3, '0');
 
     return '$minutes:$seconds.$milliseconds';
   }
@@ -28,18 +52,47 @@ class FramePreviewDialog extends StatelessWidget {
     return AlertDialog(
       title: Text('取得フレーム ${_formatPosition(position)}'),
       content: ConstrainedBox(
-        constraints: const BoxConstraints(
-          maxWidth: 600,
-          maxHeight: 600,
-        ),
-        child: InteractiveViewer(
-          minScale: 0.5,
-          maxScale: 5,
-          child: Image.memory(
-            imageBytes,
-            fit: BoxFit.contain,
-            gaplessPlayback: true,
-          ),
+        constraints: const BoxConstraints(maxWidth: 600, maxHeight: 650),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('$imageWidth × $imageHeight px'),
+            const SizedBox(height: 4),
+            Text(
+              '中央座標: ($centerX, $centerY)',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            Text(
+              '中央 RGB: $centerRed, $centerGreen, $centerBlue',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            Text(
+              '中央 HSV: '
+              '${centerHue.toStringAsFixed(1)}, '
+              '${centerSaturation.toStringAsFixed(3)}, '
+              '${centerValue.toStringAsFixed(3)}',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            Text(
+              '色判定: '
+              '${centerIsYellow ? '黄色 ' : ''}'
+              '${centerIsRed ? '赤' : ''}'
+              '${!centerIsYellow && !centerIsRed ? '対象外' : ''}',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 12),
+            Flexible(
+              child: InteractiveViewer(
+                minScale: 0.5,
+                maxScale: 5,
+                child: Image.memory(
+                  imageBytes,
+                  fit: BoxFit.contain,
+                  gaplessPlayback: true,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
       actions: [

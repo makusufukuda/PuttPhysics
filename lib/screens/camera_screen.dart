@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 
 import '../services/frame_extractor.dart';
+import '../services/image_inspector.dart';
 import 'frame_preview_dialog.dart';
 import 'video_player_view.dart';
 
@@ -235,10 +236,32 @@ class _CameraScreenState extends State<CameraScreen> {
         return;
       }
 
+      final imageInfo = ImageInspector.inspect(imageBytes);
+
+      if (imageInfo == null) {
+        _showMessage('フレーム画像を読み込めませんでした。');
+        return;
+      }
+
       await showDialog<void>(
         context: context,
         builder: (context) {
-          return FramePreviewDialog(imageBytes: imageBytes, position: position);
+          return FramePreviewDialog(
+            imageBytes: imageBytes,
+            position: position,
+            imageWidth: imageInfo.width,
+            imageHeight: imageInfo.height,
+            centerX: imageInfo.centerX,
+            centerY: imageInfo.centerY,
+            centerRed: imageInfo.centerRed,
+            centerGreen: imageInfo.centerGreen,
+            centerBlue: imageInfo.centerBlue,
+            centerHue: imageInfo.centerHue,
+            centerSaturation: imageInfo.centerSaturation,
+            centerValue: imageInfo.centerValue,
+            centerIsYellow: imageInfo.centerIsYellow,
+            centerIsRed: imageInfo.centerIsRed,
+          );
         },
       );
     } catch (error) {
