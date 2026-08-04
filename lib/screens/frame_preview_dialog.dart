@@ -240,6 +240,18 @@ class FramePreviewDialog extends StatelessWidget {
                             centroidY: largestBlobCentroidY!,
                           ),
                         ),
+
+                      if (hasBestCandidate)
+                        CustomPaint(
+                          painter: _BallCandidatePainter(
+                            sourceWidth: imageWidth,
+                            sourceHeight: imageHeight,
+                            centerX: bestCandidateCenterX!,
+                            centerY: bestCandidateCenterY!,
+                            radius: bestCandidateRadius!,
+                            confidence: bestCandidateConfidence!,
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -338,5 +350,86 @@ class _BlobOverlayPainter extends CustomPainter {
         blobHeight != oldDelegate.blobHeight ||
         centroidX != oldDelegate.centroidX ||
         centroidY != oldDelegate.centroidY;
+  }
+}
+
+class _BallCandidatePainter extends CustomPainter {
+  const _BallCandidatePainter({
+    required this.sourceWidth,
+    required this.sourceHeight,
+    required this.centerX,
+    required this.centerY,
+    required this.radius,
+    required this.confidence,
+  });
+
+  final int sourceWidth;
+  final int sourceHeight;
+  final double centerX;
+  final double centerY;
+  final double radius;
+  final double confidence;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final scaleX = size.width / sourceWidth;
+    final scaleY = size.height / sourceHeight;
+
+    final center = Offset(centerX * scaleX, centerY * scaleY);
+
+    final displayedRadius = radius * ((scaleX + scaleY) / 2);
+
+    final circlePaint = Paint()
+      ..color = Colors.blue
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3;
+
+    canvas.drawCircle(center, displayedRadius, circlePaint);
+
+    final crossPaint = Paint()
+      ..color = Colors.blue
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+
+    canvas.drawLine(
+      Offset(center.dx - 10, center.dy),
+      Offset(center.dx + 10, center.dy),
+      crossPaint,
+    );
+
+    canvas.drawLine(
+      Offset(center.dx, center.dy - 10),
+      Offset(center.dx, center.dy + 10),
+      crossPaint,
+    );
+
+    final textPainter = TextPainter(
+      text: TextSpan(
+        text: '${(confidence * 100).toStringAsFixed(0)}%',
+        style: const TextStyle(
+          color: Colors.blue,
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    );
+
+    textPainter.layout();
+
+    textPainter.paint(
+      canvas,
+      Offset(center.dx + displayedRadius + 6, center.dy - displayedRadius),
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _BallCandidatePainter oldDelegate) {
+    return sourceWidth != oldDelegate.sourceWidth ||
+        sourceHeight != oldDelegate.sourceHeight ||
+        centerX != oldDelegate.centerX ||
+        centerY != oldDelegate.centerY ||
+        radius != oldDelegate.radius ||
+        confidence != oldDelegate.confidence;
   }
 }

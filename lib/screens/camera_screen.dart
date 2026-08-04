@@ -17,7 +17,36 @@ class CameraScreen extends StatefulWidget {
   State<CameraScreen> createState() => _CameraScreenState();
 }
 
-class _CameraScreenState extends State<CameraScreen> {
+class _CameraScreenState extends State<CameraScreen>
+    with WidgetsBindingObserver {
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) async {
+    final controller = _cameraController;
+
+    if (controller == null) {
+      return;
+    }
+
+    switch (state) {
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.paused:
+      case AppLifecycleState.hidden:
+        await controller.dispose();
+        _cameraController = null;
+        _initializeCameraFuture = null;
+        break;
+
+      case AppLifecycleState.resumed:
+        if (_cameraController == null) {
+          await _initializeCamera();
+        }
+        break;
+
+      case AppLifecycleState.detached:
+        break;
+    }
+  }
+
   static const double _videoFps = 30.0;
   CameraController? _cameraController;
   Future<void>? _initializeCameraFuture;
@@ -30,6 +59,7 @@ class _CameraScreenState extends State<CameraScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initializeCamera();
   }
 
@@ -326,6 +356,7 @@ class _CameraScreenState extends State<CameraScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _videoPlayerController?.removeListener(_onVideoChanged);
     _videoPlayerController?.dispose();
     _cameraController?.dispose();
