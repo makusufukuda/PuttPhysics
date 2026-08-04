@@ -32,6 +32,7 @@ class ImageInfoResult {
     required this.blobCount,
     required this.largestBlob,
     required this.ballCandidateCount,
+    required this.ballCandidates,
     required this.bestBallCandidate,
   });
 
@@ -64,6 +65,7 @@ class ImageInfoResult {
   final Blob? largestBlob;
 
   final int ballCandidateCount;
+  final List<BallCandidate> ballCandidates;
   final BallCandidate? bestBallCandidate;
 }
 
@@ -136,6 +138,7 @@ class ImageInspector {
       blobCount: blobs.length,
       largestBlob: largestBlob,
       ballCandidateCount: ballCandidates.length,
+      ballCandidates: ballCandidates,
       bestBallCandidate: bestBallCandidate,
     );
   }

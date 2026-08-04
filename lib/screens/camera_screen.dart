@@ -307,6 +307,16 @@ class _CameraScreenState extends State<CameraScreen>
             largestBlobWidth: largestBlob?.width,
             largestBlobHeight: largestBlob?.height,
             ballCandidateCount: imageInfo.ballCandidateCount,
+            ballCandidates: imageInfo.ballCandidates
+                .map(
+                  (candidate) => BallCandidateViewData(
+                    centerX: candidate.centerX,
+                    centerY: candidate.centerY,
+                    radius: candidate.radius,
+                    confidence: candidate.confidence,
+                  ),
+                )
+                .toList(),
             bestCandidateCenterX: bestBallCandidate?.centerX,
             bestCandidateCenterY: bestBallCandidate?.centerY,
             bestCandidateRadius: bestBallCandidate?.radius,

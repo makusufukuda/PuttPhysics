@@ -2,6 +2,20 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
+class BallCandidateViewData {
+  const BallCandidateViewData({
+    required this.centerX,
+    required this.centerY,
+    required this.radius,
+    required this.confidence,
+  });
+
+  final double centerX;
+  final double centerY;
+  final double radius;
+  final double confidence;
+}
+
 class FramePreviewDialog extends StatelessWidget {
   const FramePreviewDialog({
     super.key,
@@ -38,6 +52,7 @@ class FramePreviewDialog extends StatelessWidget {
     required this.bestCandidateCenterY,
     required this.bestCandidateRadius,
     required this.bestCandidateConfidence,
+    required this.ballCandidates,
   });
 
   final Uint8List imageBytes;
@@ -82,6 +97,7 @@ class FramePreviewDialog extends StatelessWidget {
   final double? bestCandidateCenterY;
   final double? bestCandidateRadius;
   final double? bestCandidateConfidence;
+  final List<BallCandidateViewData> ballCandidates;
 
   String _formatPosition(Duration value) {
     final minutes = value.inMinutes.remainder(60).toString().padLeft(2, '0');
