@@ -7,6 +7,7 @@ import 'package:video_player/video_player.dart';
 
 import '../services/frame_extractor.dart';
 import '../services/image_inspector.dart';
+import '../services/ball_tracker.dart';
 import 'frame_preview_dialog.dart';
 import 'video_player_view.dart';
 
@@ -52,6 +53,10 @@ class _CameraScreenState extends State<CameraScreen>
   Future<void>? _initializeCameraFuture;
   VideoPlayerController? _videoPlayerController;
   String? _recordedVideoPath;
+
+  final BallTracker _ballTracker = BallTracker();
+
+  int _frameAnalysisCount = 0;
 
   String? _errorMessage;
   bool _isRecording = false;
@@ -271,6 +276,25 @@ class _CameraScreenState extends State<CameraScreen>
       if (imageInfo == null) {
         _showMessage('フレーム画像を読み込めませんでした。');
         return;
+      }
+      _frameAnalysisCount++;
+
+      final trackedBall = _ballTracker.track(
+        frameIndex: _frameAnalysisCount,
+        timestamp: position,
+        candidates: imageInfo.ballCandidates,
+      );
+
+      if (trackedBall != null) {
+        debugPrint(
+          'TrackedBall '
+          'frame=${trackedBall.frameIndex} '
+          'time=${trackedBall.timestamp.inMilliseconds}ms '
+          'x=${trackedBall.centerX.toStringAsFixed(1)} '
+          'y=${trackedBall.centerY.toStringAsFixed(1)} '
+          'r=${trackedBall.radius.toStringAsFixed(1)} '
+          'conf=${(trackedBall.confidence * 100).toStringAsFixed(1)}%',
+        );
       }
       final largestBlob = imageInfo.largestBlob;
       final bestBallCandidate = imageInfo.bestBallCandidate;
