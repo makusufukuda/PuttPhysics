@@ -236,7 +236,6 @@ class FramePreviewDialog extends StatelessWidget {
             ] else
               Text('最良候補: なし', style: Theme.of(context).textTheme.bodySmall),
 
-            Text('最大Blob: なし', style: Theme.of(context).textTheme.bodySmall),
             const SizedBox(height: 12),
             Flexible(
               child: InteractiveViewer(
