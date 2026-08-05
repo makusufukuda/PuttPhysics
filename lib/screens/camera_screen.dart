@@ -25,27 +25,24 @@ class _CameraScreenState extends State<CameraScreen>
   void didChangeAppLifecycleState(AppLifecycleState state) async {
     final controller = _cameraController;
 
-    if (controller == null) {
-      return;
-    }
+    if (state == AppLifecycleState.inactive) {
+      // 初期化途中なら、ここでは解放しない。
+      if (controller == null || !controller.value.isInitialized) {
+        return;
+      }
 
-    switch (state) {
-      case AppLifecycleState.inactive:
-      case AppLifecycleState.paused:
-      case AppLifecycleState.hidden:
-        await controller.dispose();
-        _cameraController = null;
-        _initializeCameraFuture = null;
-        break;
+      _cameraController = null;
+      _initializeCameraFuture = null;
 
-      case AppLifecycleState.resumed:
-        if (_cameraController == null) {
-          await _initializeCamera();
-        }
-        break;
+      await controller.dispose();
 
-      case AppLifecycleState.detached:
-        break;
+      if (mounted) {
+        setState(() {});
+      }
+    } else if (state == AppLifecycleState.resumed) {
+      if (_cameraController == null) {
+        await _initializeCamera();
+      }
     }
   }
 

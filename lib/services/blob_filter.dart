@@ -7,11 +7,11 @@ class BlobFilter {
   const BlobFilter._();
 
   static const int minimumPixelCount = 50;
-  static const int minimumDiameter = 8;
+  static const int minimumDiameter = 30;
   static const int maximumDiameter = 300;
 
   static const double minimumAspectRatio = 0.65;
-  static const double maximumAspectRatio = 1.35;
+  static const double maximumAspectRatio = 1.60;
   static const double minimumFillRatio = 0.45;
 
   static List<BallCandidate> filter(List<Blob> blobs) {
