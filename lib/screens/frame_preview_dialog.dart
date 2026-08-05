@@ -207,6 +207,15 @@ class FramePreviewDialog extends StatelessWidget {
               'BallCandidate候補数: $ballCandidateCount',
               style: Theme.of(context).textTheme.bodySmall,
             ),
+            if (ballCandidates.isNotEmpty)
+              CustomPaint(
+                painter: _AllBallCandidatePainter(
+                  sourceWidth: imageWidth,
+                  sourceHeight: imageHeight,
+                  ballCandidates: ballCandidates,
+                ),
+              ),
+
             if (hasBestCandidate) ...[
               Text(
                 '最良候補の中心: '
@@ -447,5 +456,62 @@ class _BallCandidatePainter extends CustomPainter {
         centerY != oldDelegate.centerY ||
         radius != oldDelegate.radius ||
         confidence != oldDelegate.confidence;
+  }
+}
+
+class _AllBallCandidatePainter extends CustomPainter {
+  const _AllBallCandidatePainter({
+    required this.sourceWidth,
+    required this.sourceHeight,
+    required this.ballCandidates,
+  });
+
+  final int sourceWidth;
+  final int sourceHeight;
+  final List<BallCandidateViewData> ballCandidates;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final scaleX = size.width / sourceWidth;
+    final scaleY = size.height / sourceHeight;
+
+    final paint = Paint()
+      ..color = Colors.orange
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+
+    for (var i = 0; i < ballCandidates.length; i++) {
+      final candidate = ballCandidates[i];
+
+      final center = Offset(
+        candidate.centerX * scaleX,
+        candidate.centerY * scaleY,
+      );
+
+      final radius = candidate.radius * ((scaleX + scaleY) / 2);
+
+      canvas.drawCircle(center, radius, paint);
+
+      final textPainter = TextPainter(
+        text: TextSpan(
+          text: '${i + 1} ${(candidate.confidence * 100).toStringAsFixed(0)}%',
+          style: const TextStyle(
+            color: Colors.orange,
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      );
+
+      textPainter.layout();
+
+      textPainter.paint(canvas, Offset(center.dx + radius + 4, center.dy));
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _AllBallCandidatePainter oldDelegate) {
+    return ballCandidates != oldDelegate.ballCandidates;
   }
 }
