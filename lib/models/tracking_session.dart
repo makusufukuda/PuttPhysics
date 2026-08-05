@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'tracked_ball.dart';
 
 class TrackingSession {
@@ -22,4 +24,44 @@ class TrackingSession {
   void clear() {
     _balls.clear();
   }
+
+  TrackingMetrics? latestMetrics() {
+    if (_balls.length < 2) {
+      return null;
+    }
+
+    final previous = _balls[_balls.length - 2];
+    final current = _balls.last;
+
+    final dx = current.centerX - previous.centerX;
+    final dy = current.centerY - previous.centerY;
+
+    final distance = math.sqrt((dx * dx) + (dy * dy));
+
+    final deltaTime =
+        (current.timestamp - previous.timestamp).inMicroseconds /
+        Duration.microsecondsPerSecond;
+
+    if (deltaTime <= 0) {
+      return null;
+    }
+
+    return TrackingMetrics(
+      deltaTimeSeconds: deltaTime,
+      distancePixels: distance,
+      speedPixelsPerSecond: distance / deltaTime,
+    );
+  }
+}
+
+class TrackingMetrics {
+  const TrackingMetrics({
+    required this.deltaTimeSeconds,
+    required this.distancePixels,
+    required this.speedPixelsPerSecond,
+  });
+
+  final double deltaTimeSeconds;
+  final double distancePixels;
+  final double speedPixelsPerSecond;
 }
