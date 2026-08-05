@@ -7,6 +7,7 @@ import 'package:video_player/video_player.dart';
 
 import '../services/frame_extractor.dart';
 import '../services/image_inspector.dart';
+import '../models/tracking_session.dart';
 import '../services/ball_tracker.dart';
 import 'frame_preview_dialog.dart';
 import 'video_player_view.dart';
@@ -55,6 +56,7 @@ class _CameraScreenState extends State<CameraScreen>
   String? _recordedVideoPath;
 
   final BallTracker _ballTracker = BallTracker();
+  final TrackingSession _trackingSession = TrackingSession();
 
   int _frameAnalysisCount = 0;
 
@@ -284,11 +286,14 @@ class _CameraScreenState extends State<CameraScreen>
         timestamp: position,
         candidates: imageInfo.ballCandidates,
       );
-
+      if (trackedBall != null) {
+        _trackingSession.add(trackedBall);
+      }
       if (trackedBall != null) {
         debugPrint(
           'TrackedBall '
           'frame=${trackedBall.frameIndex} '
+          'count=${_trackingSession.length} '
           'time=${trackedBall.timestamp.inMilliseconds}ms '
           'x=${trackedBall.centerX.toStringAsFixed(1)} '
           'y=${trackedBall.centerY.toStringAsFixed(1)} '
