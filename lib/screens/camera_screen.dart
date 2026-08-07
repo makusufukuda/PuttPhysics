@@ -285,6 +285,26 @@ class _CameraScreenState extends State<CameraScreen>
       );
       if (trackedBall != null) {
         _trackingSession.add(trackedBall);
+        final trackingMetrics = _trackingSession.latestMetrics();
+
+        if (trackingMetrics != null) {
+          debugPrint(
+            'TrackingMetrics '
+            'dt=${trackingMetrics.deltaTimeSeconds.toStringAsFixed(4)}s '
+            'distance=${trackingMetrics.distancePixels.toStringAsFixed(2)}px '
+            'speed=${trackingMetrics.speedPixelsPerSecond.toStringAsFixed(2)}px/s',
+          );
+        }
+      }
+      final trackingMetrics = _trackingSession.latestMetrics();
+
+      if (trackingMetrics != null) {
+        debugPrint(
+          'TrackingMetrics '
+          'dt=${trackingMetrics.deltaTimeSeconds.toStringAsFixed(4)}s '
+          'distance=${trackingMetrics.distancePixels.toStringAsFixed(2)}px '
+          'speed=${trackingMetrics.speedPixelsPerSecond.toStringAsFixed(2)}px/s',
+        );
       }
       if (trackedBall != null) {
         debugPrint(

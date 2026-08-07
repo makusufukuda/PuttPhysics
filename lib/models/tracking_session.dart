@@ -18,6 +18,12 @@ class TrackingSession {
   TrackedBall? get latest => _balls.isEmpty ? null : _balls.last;
 
   void add(TrackedBall ball) {
+    final latestBall = latest;
+
+    if (latestBall != null && ball.timestamp <= latestBall.timestamp) {
+      return;
+    }
+
     _balls.add(ball);
   }
 

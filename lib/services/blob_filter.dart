@@ -52,9 +52,12 @@ class BlobFilter {
       aspectRatio: aspectRatio,
     );
 
+    final centerX = (blob.minX + blob.maxX) / 2.0;
+    final centerY = (blob.minY + blob.maxY) / 2.0;
+
     return BallCandidate(
-      centerX: blob.centroidX,
-      centerY: blob.centroidY,
+      centerX: centerX,
+      centerY: centerY,
       radius: estimatedRadius,
       confidence: confidence,
     );
