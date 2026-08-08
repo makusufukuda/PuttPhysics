@@ -48,10 +48,9 @@ class TrackingSession {
         (current.timestamp - previous.timestamp).inMicroseconds /
         Duration.microsecondsPerSecond;
 
-    if (deltaTime <= 0) {
+    if (deltaTime <= 0 || deltaTime > 1.0) {
       return null;
     }
-
     return TrackingMetrics(
       deltaTimeSeconds: deltaTime,
       distancePixels: distance,

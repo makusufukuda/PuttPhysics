@@ -7,17 +7,24 @@ class BallTracker {
   BallTracker({
     this.maximumMovementPixels = 120.0,
     this.maximumRadiusChangeRatio = 0.5,
+    this.maximumMissedFrames = 3,
   });
 
   final double maximumMovementPixels;
   final double maximumRadiusChangeRatio;
+  final int maximumMissedFrames;
 
   TrackedBall? _lastTrackedBall;
+
+  int _missedFrameCount = 0;
+
+  int get missedFrameCount => _missedFrameCount;
 
   TrackedBall? get lastTrackedBall => _lastTrackedBall;
 
   void reset() {
     _lastTrackedBall = null;
+    _missedFrameCount = 0;
   }
 
   TrackedBall? track({
@@ -26,6 +33,12 @@ class BallTracker {
     required List<BallCandidate> candidates,
   }) {
     if (candidates.isEmpty) {
+      _missedFrameCount++;
+
+      if (_missedFrameCount > maximumMissedFrames) {
+        _lastTrackedBall = null;
+      }
+
       return null;
     }
 
@@ -34,6 +47,12 @@ class BallTracker {
         : _findBestMatchingCandidate(candidates);
 
     if (selectedCandidate == null) {
+      _missedFrameCount++;
+
+      if (_missedFrameCount > maximumMissedFrames) {
+        _lastTrackedBall = null;
+      }
+
       return null;
     }
 
@@ -47,6 +66,7 @@ class BallTracker {
     );
 
     _lastTrackedBall = trackedBall;
+    _missedFrameCount = 0;
     return trackedBall;
   }
 

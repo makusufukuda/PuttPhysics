@@ -283,6 +283,8 @@ class _CameraScreenState extends State<CameraScreen>
         timestamp: position,
         candidates: imageInfo.ballCandidates,
       );
+
+      debugPrint('BallTracker missedFrames=${_ballTracker.missedFrameCount}');
       if (trackedBall != null) {
         _trackingSession.add(trackedBall);
         final trackingMetrics = _trackingSession.latestMetrics();
@@ -296,16 +298,7 @@ class _CameraScreenState extends State<CameraScreen>
           );
         }
       }
-      final trackingMetrics = _trackingSession.latestMetrics();
 
-      if (trackingMetrics != null) {
-        debugPrint(
-          'TrackingMetrics '
-          'dt=${trackingMetrics.deltaTimeSeconds.toStringAsFixed(4)}s '
-          'distance=${trackingMetrics.distancePixels.toStringAsFixed(2)}px '
-          'speed=${trackingMetrics.speedPixelsPerSecond.toStringAsFixed(2)}px/s',
-        );
-      }
       if (trackedBall != null) {
         debugPrint(
           'TrackedBall '
@@ -410,6 +403,75 @@ class _CameraScreenState extends State<CameraScreen>
     return _isRecording ? Icons.stop : Icons.videocam;
   }
 
+  Future<void> _analyzeRecordedVideoFrames() async {
+    final videoController = _videoPlayerController;
+    final videoPath = _recordedVideoPath;
+
+    if (videoController == null ||
+        !videoController.value.isInitialized ||
+        videoPath == null) {
+      _showMessage('先に動画を録画してください。');
+      return;
+    }
+
+    _ballTracker.reset();
+    _trackingSession.clear();
+    _frameAnalysisCount = 0;
+
+    final duration = videoController.value.duration;
+
+    await for (final frame in FrameExtractor.extractFrames(
+      videoPath: videoPath,
+      duration: duration,
+    )) {
+      final imageInfo = ImageInspector.inspect(frame.imageBytes);
+
+      if (imageInfo == null) {
+        continue;
+      }
+
+      _frameAnalysisCount++;
+
+      final trackedBall = _ballTracker.track(
+        frameIndex: _frameAnalysisCount,
+        timestamp: frame.position,
+        candidates: imageInfo.ballCandidates,
+      );
+
+      if (trackedBall == null) {
+        continue;
+      }
+
+      _trackingSession.add(trackedBall);
+
+      final metrics = _trackingSession.latestMetrics();
+
+      debugPrint(
+        'AutoTrackedBall '
+        'frame=${trackedBall.frameIndex} '
+        'time=${trackedBall.timestamp.inMilliseconds}ms '
+        'x=${trackedBall.centerX.toStringAsFixed(1)} '
+        'y=${trackedBall.centerY.toStringAsFixed(1)} '
+        'conf=${(trackedBall.confidence * 100).toStringAsFixed(1)}%',
+      );
+
+      if (metrics != null) {
+        debugPrint(
+          'AutoTrackingMetrics '
+          'dt=${metrics.deltaTimeSeconds.toStringAsFixed(4)}s '
+          'distance=${metrics.distancePixels.toStringAsFixed(2)}px '
+          'speed=${metrics.speedPixelsPerSecond.toStringAsFixed(2)}px/s',
+        );
+      }
+    }
+
+    debugPrint(
+      'AutoTracking finished '
+      'frames=$_frameAnalysisCount '
+      'tracked=${_trackingSession.length}',
+    );
+  }
+
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
@@ -437,6 +499,9 @@ class _CameraScreenState extends State<CameraScreen>
         },
         onCaptureFrame: () {
           _captureCurrentFrame();
+        },
+        onAnalyzeVideo: () {
+          _analyzeRecordedVideoFrames();
         },
       ),
       floatingActionButton: FloatingActionButton(

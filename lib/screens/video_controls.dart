@@ -9,6 +9,7 @@ class VideoControls extends StatelessWidget {
     this.onPreviousFrame,
     this.onNextFrame,
     this.onCaptureFrame,
+    this.onAnalyzeVideo,
   });
 
   final VideoPlayerController controller;
@@ -16,12 +17,11 @@ class VideoControls extends StatelessWidget {
   final VoidCallback? onPreviousFrame;
   final VoidCallback? onNextFrame;
   final VoidCallback? onCaptureFrame;
+  final VoidCallback? onAnalyzeVideo;
 
   String _formatDuration(Duration duration) {
-    final minutes =
-        duration.inMinutes.remainder(60).toString().padLeft(2, '0');
-    final seconds =
-        duration.inSeconds.remainder(60).toString().padLeft(2, '0');
+    final minutes = duration.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final seconds = duration.inSeconds.remainder(60).toString().padLeft(2, '0');
     final milliseconds = duration.inMilliseconds
         .remainder(1000)
         .toString()
@@ -31,9 +31,7 @@ class VideoControls extends StatelessWidget {
   }
 
   int _currentFrame(Duration position) {
-    return (position.inMicroseconds *
-            videoFps /
-            Duration.microsecondsPerSecond)
+    return (position.inMicroseconds * videoFps / Duration.microsecondsPerSecond)
         .round();
   }
 
@@ -76,6 +74,12 @@ class VideoControls extends StatelessWidget {
                 onPressed: onCaptureFrame,
                 icon: const Icon(Icons.photo_camera),
                 label: const Text('画像取得'),
+              ),
+              const SizedBox(width: 12),
+              FilledButton.icon(
+                onPressed: onAnalyzeVideo,
+                icon: const Icon(Icons.analytics),
+                label: const Text('動画解析'),
               ),
               const SizedBox(width: 20),
               IconButton(
