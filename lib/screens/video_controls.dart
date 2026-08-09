@@ -75,12 +75,6 @@ class VideoControls extends StatelessWidget {
                 icon: const Icon(Icons.photo_camera),
                 label: const Text('画像取得'),
               ),
-              const SizedBox(width: 12),
-              FilledButton.icon(
-                onPressed: onAnalyzeVideo,
-                icon: const Icon(Icons.analytics),
-                label: const Text('動画解析'),
-              ),
               const SizedBox(width: 20),
               IconButton(
                 tooltip: '1コマ進む',
@@ -88,6 +82,12 @@ class VideoControls extends StatelessWidget {
                 onPressed: onNextFrame,
               ),
             ],
+          ),
+          const SizedBox(height: 8),
+          FilledButton.icon(
+            onPressed: onAnalyzeVideo,
+            icon: const Icon(Icons.analytics),
+            label: const Text('動画解析'),
           ),
         ],
       ),
