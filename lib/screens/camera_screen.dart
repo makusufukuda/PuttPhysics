@@ -58,6 +58,7 @@ class _CameraScreenState extends State<CameraScreen>
   int _frameAnalysisCount = 0;
 
   String? _errorMessage;
+  String? _analysisResultMessage;
   bool _isRecording = false;
 
   @override
@@ -470,6 +471,20 @@ class _CameraScreenState extends State<CameraScreen>
       'frames=$_frameAnalysisCount '
       'tracked=${_trackingSession.length}',
     );
+
+    final latestMetrics = _trackingSession.latestMetrics();
+
+    if (mounted) {
+      setState(() {
+        if (latestMetrics != null) {
+          _analysisResultMessage =
+              '解析完了: ${_trackingSession.length}フレーム追跡 / '
+              '最新速度 ${latestMetrics.speedPixelsPerSecond.toStringAsFixed(1)} px/s';
+        } else {
+          _analysisResultMessage = '解析完了: ${_trackingSession.length}フレーム追跡';
+        }
+      });
+    }
   }
 
   @override
@@ -485,24 +500,35 @@ class _CameraScreenState extends State<CameraScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('カメラ確認')),
-      body: VideoPlayerView(
-        cameraController: _cameraController,
-        initializeCameraFuture: _initializeCameraFuture,
-        errorMessage: _errorMessage,
-        videoController: _videoPlayerController,
-        videoFps: _videoFps,
-        onPreviousFrame: () {
-          _seekOneFrame(forward: false);
-        },
-        onNextFrame: () {
-          _seekOneFrame(forward: true);
-        },
-        onCaptureFrame: () {
-          _captureCurrentFrame();
-        },
-        onAnalyzeVideo: () {
-          _analyzeRecordedVideoFrames();
-        },
+      body: Column(
+        children: [
+          if (_analysisResultMessage != null)
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Text(_analysisResultMessage!, textAlign: TextAlign.center),
+            ),
+          Expanded(
+            child: VideoPlayerView(
+              cameraController: _cameraController,
+              initializeCameraFuture: _initializeCameraFuture,
+              errorMessage: _errorMessage,
+              videoController: _videoPlayerController,
+              videoFps: _videoFps,
+              onPreviousFrame: () {
+                _seekOneFrame(forward: false);
+              },
+              onNextFrame: () {
+                _seekOneFrame(forward: true);
+              },
+              onCaptureFrame: () {
+                _captureCurrentFrame();
+              },
+              onAnalyzeVideo: () {
+                _analyzeRecordedVideoFrames();
+              },
+            ),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _handleMainButton,
