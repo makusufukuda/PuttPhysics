@@ -180,6 +180,29 @@ class ImageInspector {
       return null;
     }
 
+    final horizontalGap = redBlob.maxX < yellowBlob.minX
+        ? yellowBlob.minX - redBlob.maxX - 1
+        : yellowBlob.maxX < redBlob.minX
+        ? redBlob.minX - yellowBlob.maxX - 1
+        : 0;
+
+    final verticalGap = redBlob.maxY < yellowBlob.minY
+        ? yellowBlob.minY - redBlob.maxY - 1
+        : yellowBlob.maxY < redBlob.minY
+        ? redBlob.minY - yellowBlob.maxY - 1
+        : 0;
+
+    const maximumGap = 40;
+
+    if (horizontalGap > maximumGap || verticalGap > maximumGap) {
+      print(
+        'COMBINED REJECT gap '
+        'horizontal=$horizontalGap '
+        'vertical=$verticalGap',
+      );
+      return null;
+    }
+
     final minX = redBlob.minX < yellowBlob.minX
         ? redBlob.minX
         : yellowBlob.minX;
