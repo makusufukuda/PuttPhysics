@@ -13,6 +13,10 @@ class ColorScanner {
 
     final mask = ColorMask(width: image.width, height: image.height);
 
+    final yellowMask = ColorMask(width: image.width, height: image.height);
+
+    final redMask = ColorMask(width: image.width, height: image.height);
+
     for (var y = 0; y < image.height; y++) {
       for (var x = 0; x < image.width; x++) {
         final pixel = image.getPixel(x, y);
@@ -34,6 +38,10 @@ class ColorScanner {
           redPixels++;
         }
 
+        yellowMask.setPixel(x, y, isYellow);
+        redMask.setPixel(x, y, isRed);
+
+        // 従来処理も残す
         mask.setPixel(x, y, isYellow || isRed);
       }
     }
@@ -43,6 +51,8 @@ class ColorScanner {
       yellowPixels: yellowPixels,
       redPixels: redPixels,
       mask: mask,
+      yellowMask: yellowMask,
+      redMask: redMask,
     );
   }
 }
