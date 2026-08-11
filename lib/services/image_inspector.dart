@@ -115,12 +115,6 @@ class ImageInspector {
     final largestYellowBlob = _findLargestBlob(yellowBlobs);
     final largestRedBlob = _findLargestBlob(redBlobs);
 
-    _printBlobSummary('YELLOW', largestYellowBlob);
-    _printBlobSummary('RED', largestRedBlob);
-
-    _printTopBlobs('YELLOW', yellowBlobs);
-    _printTopBlobs('RED', redBlobs);
-
     Blob? largestBlob;
 
     for (final blob in blobs) {
@@ -195,11 +189,6 @@ class ImageInspector {
     const maximumGap = 40;
 
     if (horizontalGap > maximumGap || verticalGap > maximumGap) {
-      print(
-        'COMBINED REJECT gap '
-        'horizontal=$horizontalGap '
-        'vertical=$verticalGap',
-      );
       return null;
     }
 
@@ -226,11 +215,6 @@ class ImageInspector {
     final aspectRatio = width / height;
 
     if (aspectRatio < 0.75 || aspectRatio > 1.35) {
-      print(
-        'COMBINED REJECT '
-        'size=${width}x$height '
-        'aspect=${aspectRatio.toStringAsFixed(3)}',
-      );
       return null;
     }
 
@@ -242,22 +226,12 @@ class ImageInspector {
 
     final confidence = aspectScore.clamp(0.0, 1.0);
 
-    print(
-      'COMBINED PASS '
-      'bounds=($minX,$minY)-($maxX,$maxY) '
-      'size=${width}x$height '
-      'center=(${centerX.toStringAsFixed(1)}, '
-      '${centerY.toStringAsFixed(1)}) '
-      'radius=${radius.toStringAsFixed(1)} '
-      'aspect=${aspectRatio.toStringAsFixed(3)} '
-      'confidence=${confidence.toStringAsFixed(3)}',
-    );
-
     return BallCandidate(
       centerX: centerX,
       centerY: centerY,
       radius: radius,
       confidence: confidence,
+      isCombinedRedYellow: true,
     );
   }
 
@@ -271,47 +245,5 @@ class ImageInspector {
     }
 
     return largestBlob;
-  }
-
-  static void _printBlobSummary(String label, Blob? blob) {
-    if (blob == null) {
-      print('$label largest blob: none');
-      return;
-    }
-
-    final aspectRatio = blob.width / blob.height;
-
-    print(
-      '$label largest blob '
-      'pixels=${blob.pixelCount} '
-      'size=${blob.width}x${blob.height} '
-      'centroid=(${blob.centroidX.toStringAsFixed(1)}, '
-      '${blob.centroidY.toStringAsFixed(1)}) '
-      'aspect=${aspectRatio.toStringAsFixed(3)} '
-      'fill=${blob.fillRatio.toStringAsFixed(3)}',
-    );
-  }
-
-  static void _printTopBlobs(String label, List<Blob> blobs) {
-    final sorted = List<Blob>.from(blobs)
-      ..sort((a, b) => b.pixelCount.compareTo(a.pixelCount));
-
-    final count = sorted.length < 5 ? sorted.length : 5;
-
-    for (var i = 0; i < count; i++) {
-      final blob = sorted[i];
-      final aspectRatio = blob.width / blob.height;
-
-      print(
-        '$label TOP[$i] '
-        'pixels=${blob.pixelCount} '
-        'bounds=(${blob.minX},${blob.minY})-(${blob.maxX},${blob.maxY}) '
-        'size=${blob.width}x${blob.height} '
-        'centroid=(${blob.centroidX.toStringAsFixed(1)}, '
-        '${blob.centroidY.toStringAsFixed(1)}) '
-        'aspect=${aspectRatio.toStringAsFixed(3)} '
-        'fill=${blob.fillRatio.toStringAsFixed(3)}',
-      );
-    }
   }
 }

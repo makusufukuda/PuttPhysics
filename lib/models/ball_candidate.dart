@@ -4,12 +4,14 @@ class BallCandidate {
     required this.centerY,
     required this.radius,
     required this.confidence,
+    this.isCombinedRedYellow = false,
   });
 
   final double centerX;
   final double centerY;
   final double radius;
   final double confidence;
+  final bool isCombinedRedYellow;
 
   @override
   String toString() {
@@ -17,7 +19,8 @@ class BallCandidate {
         'centerX: $centerX, '
         'centerY: $centerY, '
         'radius: $radius, '
-        'confidence: $confidence'
+        'confidence: $confidence, '
+        'isCombinedRedYellow: $isCombinedRedYellow'
         ')';
   }
 }

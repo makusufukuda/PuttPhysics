@@ -43,7 +43,7 @@ class BallTracker {
     }
 
     final selectedCandidate = _lastTrackedBall == null
-        ? candidates.first
+        ? _selectInitialCandidate(candidates)
         : _findBestMatchingCandidate(candidates);
 
     if (selectedCandidate == null) {
@@ -68,6 +68,16 @@ class BallTracker {
     _lastTrackedBall = trackedBall;
     _missedFrameCount = 0;
     return trackedBall;
+  }
+
+  BallCandidate _selectInitialCandidate(List<BallCandidate> candidates) {
+    for (final candidate in candidates) {
+      if (candidate.isCombinedRedYellow) {
+        return candidate;
+      }
+    }
+
+    return candidates.first;
   }
 
   BallCandidate? _findBestMatchingCandidate(List<BallCandidate> candidates) {

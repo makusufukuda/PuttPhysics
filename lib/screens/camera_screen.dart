@@ -440,6 +440,13 @@ class _CameraScreenState extends State<CameraScreen>
       );
 
       if (trackedBall == null) {
+        debugPrint(
+          'AutoTrackMiss '
+          'frame=$_frameAnalysisCount '
+          'time=${frame.position.inMilliseconds}ms '
+          'candidates=${imageInfo.ballCandidates.length} '
+          'missedFrames=${_ballTracker.missedFrameCount}',
+        );
         continue;
       }
 
@@ -472,14 +479,56 @@ class _CameraScreenState extends State<CameraScreen>
       'tracked=${_trackingSession.length}',
     );
 
-    final latestMetrics = _trackingSession.latestMetrics();
+    final peak = _trackingSession.peakMetrics();
+
+    if (peak != null) {
+      debugPrint(
+        'PEAK SPEED '
+        'previousFrame=${peak.previous.frameIndex} '
+        'frame=${peak.current.frameIndex} '
+        'time=${peak.current.timestamp.inMilliseconds}ms '
+        'speed=${peak.metrics.speedPixelsPerSecond.toStringAsFixed(2)}px/s '
+        'distance=${peak.metrics.distancePixels.toStringAsFixed(2)}px '
+        'dt=${peak.metrics.deltaTimeSeconds.toStringAsFixed(4)}s',
+      );
+
+      final continuousMetrics = _trackingSession.continuousMetrics();
+      final peakIndex = continuousMetrics.indexWhere(
+        (item) =>
+            item.previous.frameIndex == peak.previous.frameIndex &&
+            item.current.frameIndex == peak.current.frameIndex,
+      );
+
+      if (peakIndex >= 0) {
+        debugPrint('===== PEAK CONTEXT =====');
+
+        final start = peakIndex - 3 < 0 ? 0 : peakIndex - 3;
+        final end = peakIndex + 3 >= continuousMetrics.length
+            ? continuousMetrics.length - 1
+            : peakIndex + 3;
+
+        for (var i = start; i <= end; i++) {
+          final item = continuousMetrics[i];
+
+          debugPrint(
+            'PEAK CONTEXT '
+            'frame=${item.previous.frameIndex}->${item.current.frameIndex} '
+            'time=${item.current.timestamp.inMilliseconds}ms '
+            'distance=${item.metrics.distancePixels.toStringAsFixed(2)}px '
+            'speed=${item.metrics.speedPixelsPerSecond.toStringAsFixed(2)}px/s'
+            '${i == peakIndex ? ' <-- PEAK' : ''}',
+          );
+        }
+      }
+    }
 
     if (mounted) {
       setState(() {
-        if (latestMetrics != null) {
+        if (peak != null) {
           _analysisResultMessage =
               '解析完了: ${_trackingSession.length}フレーム追跡 / '
-              '最新速度 ${latestMetrics.speedPixelsPerSecond.toStringAsFixed(1)} px/s';
+              '最大速度 ${peak.metrics.speedPixelsPerSecond.toStringAsFixed(1)} px/s '
+              '(frame ${peak.current.frameIndex})';
         } else {
           _analysisResultMessage = '解析完了: ${_trackingSession.length}フレーム追跡';
         }

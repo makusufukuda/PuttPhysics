@@ -36,9 +36,79 @@ class TrackingSession {
       return null;
     }
 
-    final previous = _balls[_balls.length - 2];
-    final current = _balls.last;
+    return _calculateMetrics(
+      previous: _balls[_balls.length - 2],
+      current: _balls.last,
+    );
+  }
 
+  List<PeakTrackingMetrics> continuousMetrics() {
+    final results = <PeakTrackingMetrics>[];
+
+    for (var i = 1; i < _balls.length; i++) {
+      final previous = _balls[i - 1];
+      final current = _balls[i];
+
+      if (current.frameIndex != previous.frameIndex + 1) {
+        continue;
+      }
+
+      final metrics = _calculateMetrics(previous: previous, current: current);
+
+      if (metrics == null) {
+        continue;
+      }
+
+      results.add(
+        PeakTrackingMetrics(
+          previous: previous,
+          current: current,
+          metrics: metrics,
+        ),
+      );
+    }
+
+    return results;
+  }
+
+  PeakTrackingMetrics? peakMetrics() {
+    if (_balls.length < 2) {
+      return null;
+    }
+
+    PeakTrackingMetrics? peak;
+
+    for (var i = 1; i < _balls.length; i++) {
+      final previous = _balls[i - 1];
+      final current = _balls[i];
+
+      if (current.frameIndex != previous.frameIndex + 1) {
+        continue;
+      }
+
+      final metrics = _calculateMetrics(previous: previous, current: current);
+
+      if (metrics == null) {
+        continue;
+      }
+
+      if (peak == null ||
+          metrics.speedPixelsPerSecond > peak.metrics.speedPixelsPerSecond) {
+        peak = PeakTrackingMetrics(
+          previous: previous,
+          current: current,
+          metrics: metrics,
+        );
+      }
+    }
+
+    return peak;
+  }
+
+  TrackingMetrics? _calculateMetrics({
+    required TrackedBall previous,
+    required TrackedBall current,
+  }) {
     final dx = current.centerX - previous.centerX;
     final dy = current.centerY - previous.centerY;
 
@@ -51,6 +121,7 @@ class TrackingSession {
     if (deltaTime <= 0 || deltaTime > 1.0) {
       return null;
     }
+
     return TrackingMetrics(
       deltaTimeSeconds: deltaTime,
       distancePixels: distance,
@@ -69,4 +140,16 @@ class TrackingMetrics {
   final double deltaTimeSeconds;
   final double distancePixels;
   final double speedPixelsPerSecond;
+}
+
+class PeakTrackingMetrics {
+  const PeakTrackingMetrics({
+    required this.previous,
+    required this.current,
+    required this.metrics,
+  });
+
+  final TrackedBall previous;
+  final TrackedBall current;
+  final TrackingMetrics metrics;
 }
