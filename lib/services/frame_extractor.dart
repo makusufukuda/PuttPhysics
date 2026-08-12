@@ -30,7 +30,7 @@ class FrameExtractor {
   static Stream<ExtractedVideoFrame> extractFrames({
     required String videoPath,
     required Duration duration,
-    Duration interval = const Duration(milliseconds: 100),
+    Duration interval = const Duration(milliseconds: 50),
     int maxWidth = 1280,
     int quality = 95,
   }) async* {

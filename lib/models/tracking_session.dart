@@ -36,10 +36,14 @@ class TrackingSession {
       return null;
     }
 
-    return _calculateMetrics(
-      previous: _balls[_balls.length - 2],
-      current: _balls.last,
-    );
+    final previous = _balls[_balls.length - 2];
+    final current = _balls.last;
+
+    if (current.frameIndex != previous.frameIndex + 1) {
+      return null;
+    }
+
+    return _calculateMetrics(previous: previous, current: current);
   }
 
   List<PeakTrackingMetrics> continuousMetrics() {
