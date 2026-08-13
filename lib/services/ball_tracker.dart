@@ -8,15 +8,19 @@ class BallTracker {
     this.maximumMovementPixels = 120.0,
     this.maximumRadiusChangeRatio = 0.5,
     this.maximumMissedFrames = 3,
+    this.movementStartThresholdPixels = 20.0,
   });
 
   final double maximumMovementPixels;
   final double maximumRadiusChangeRatio;
   final int maximumMissedFrames;
+  final double movementStartThresholdPixels;
 
   TrackedBall? _lastTrackedBall;
 
   int _missedFrameCount = 0;
+  bool _movementStarted = false;
+  bool _trackingEnded = false;
 
   int get missedFrameCount => _missedFrameCount;
 
@@ -25,6 +29,8 @@ class BallTracker {
   void reset() {
     _lastTrackedBall = null;
     _missedFrameCount = 0;
+    _movementStarted = false;
+    _trackingEnded = false;
   }
 
   TrackedBall? track({
@@ -32,13 +38,12 @@ class BallTracker {
     required Duration timestamp,
     required List<BallCandidate> candidates,
   }) {
+    if (_trackingEnded) {
+      return null;
+    }
+
     if (candidates.isEmpty) {
-      _missedFrameCount++;
-
-      if (_missedFrameCount > maximumMissedFrames) {
-        _lastTrackedBall = null;
-      }
-
+      _registerMiss();
       return null;
     }
 
@@ -47,13 +52,20 @@ class BallTracker {
         : _findBestMatchingCandidate(candidates);
 
     if (selectedCandidate == null) {
-      _missedFrameCount++;
-
-      if (_missedFrameCount > maximumMissedFrames) {
-        _lastTrackedBall = null;
-      }
-
+      _registerMiss();
       return null;
+    }
+
+    final previous = _lastTrackedBall;
+
+    if (previous != null) {
+      final dx = selectedCandidate.centerX - previous.centerX;
+      final dy = selectedCandidate.centerY - previous.centerY;
+      final distance = math.sqrt((dx * dx) + (dy * dy));
+
+      if (distance >= movementStartThresholdPixels) {
+        _movementStarted = true;
+      }
     }
 
     final trackedBall = TrackedBall(
@@ -68,6 +80,18 @@ class BallTracker {
     _lastTrackedBall = trackedBall;
     _missedFrameCount = 0;
     return trackedBall;
+  }
+
+  void _registerMiss() {
+    _missedFrameCount++;
+
+    if (_missedFrameCount > maximumMissedFrames) {
+      _lastTrackedBall = null;
+
+      if (_movementStarted) {
+        _trackingEnded = true;
+      }
+    }
   }
 
   BallCandidate _selectInitialCandidate(List<BallCandidate> candidates) {
@@ -89,6 +113,8 @@ class BallTracker {
 
     BallCandidate? bestCandidate;
     double? bestScore;
+    BallCandidate? bestCombinedCandidate;
+    double? bestCombinedScore;
 
     for (final candidate in candidates) {
       final dx = candidate.centerX - previous.centerX;
@@ -119,6 +145,21 @@ class BallTracker {
         bestScore = score;
         bestCandidate = candidate;
       }
+
+      if (candidate.isCombinedRedYellow &&
+          (bestCombinedScore == null || score > bestCombinedScore)) {
+        bestCombinedScore = score;
+        bestCombinedCandidate = candidate;
+      }
+    }
+
+    const combinedPreferenceTolerance = 0.05;
+
+    if (bestCombinedCandidate != null &&
+        bestCombinedScore != null &&
+        bestScore != null &&
+        bestCombinedScore >= bestScore - combinedPreferenceTolerance) {
+      return bestCombinedCandidate;
     }
 
     return bestCandidate;

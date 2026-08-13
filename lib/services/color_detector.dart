@@ -49,7 +49,7 @@ class ColorDetector {
 
   static bool isYellow(HsvColorValue hsv) {
     return hsv.hue >= 40 &&
-        hsv.hue <= 75 &&
+        hsv.hue <= 90 &&
         hsv.saturation >= 0.35 &&
         hsv.value >= 0.35;
   }
