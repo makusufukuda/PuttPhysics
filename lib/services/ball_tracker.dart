@@ -16,6 +16,7 @@ class BallTracker {
   final int maximumMissedFrames;
   final double movementStartThresholdPixels;
 
+  TrackedBall? _previousTrackedBall;
   TrackedBall? _lastTrackedBall;
 
   int _missedFrameCount = 0;
@@ -27,6 +28,7 @@ class BallTracker {
   TrackedBall? get lastTrackedBall => _lastTrackedBall;
 
   void reset() {
+    _previousTrackedBall = null;
     _lastTrackedBall = null;
     _missedFrameCount = 0;
     _movementStarted = false;
@@ -49,7 +51,7 @@ class BallTracker {
 
     final selectedCandidate = _lastTrackedBall == null
         ? _selectInitialCandidate(candidates)
-        : _findBestMatchingCandidate(candidates);
+        : _findBestMatchingCandidate(candidates, timestamp);
 
     if (selectedCandidate == null) {
       _registerMiss();
@@ -77,6 +79,7 @@ class BallTracker {
       confidence: selectedCandidate.confidence,
     );
 
+    _previousTrackedBall = _lastTrackedBall;
     _lastTrackedBall = trackedBall;
     _missedFrameCount = 0;
     return trackedBall;
@@ -104,7 +107,43 @@ class BallTracker {
     return candidates.first;
   }
 
-  BallCandidate? _findBestMatchingCandidate(List<BallCandidate> candidates) {
+  double _predictionScore(BallCandidate candidate, Duration timestamp) {
+    final previous = _previousTrackedBall;
+    final last = _lastTrackedBall;
+
+    if (previous == null || last == null) {
+      return 0.5;
+    }
+
+    final sampleTime =
+        (last.timestamp - previous.timestamp).inMicroseconds /
+        Duration.microsecondsPerSecond;
+
+    final futureTime =
+        (timestamp - last.timestamp).inMicroseconds /
+        Duration.microsecondsPerSecond;
+
+    if (sampleTime <= 0 || futureTime <= 0) {
+      return 0.5;
+    }
+
+    final velocityX = (last.centerX - previous.centerX) / sampleTime;
+    final velocityY = (last.centerY - previous.centerY) / sampleTime;
+
+    final predictedX = last.centerX + (velocityX * futureTime);
+    final predictedY = last.centerY + (velocityY * futureTime);
+
+    final dx = candidate.centerX - predictedX;
+    final dy = candidate.centerY - predictedY;
+    final predictionDistance = math.sqrt((dx * dx) + (dy * dy));
+
+    return (1.0 - (predictionDistance / maximumMovementPixels)).clamp(0.0, 1.0);
+  }
+
+  BallCandidate? _findBestMatchingCandidate(
+    List<BallCandidate> candidates,
+    Duration timestamp,
+  ) {
     final previous = _lastTrackedBall;
 
     if (previous == null) {
@@ -135,11 +174,15 @@ class BallTracker {
       }
 
       final distanceScore = 1.0 - (distance / maximumMovementPixels);
+      final predictionScore = _predictionScore(candidate, timestamp);
       final radiusScore = 1.0 - radiusChangeRatio;
       final confidenceScore = candidate.confidence;
 
       final score =
-          (distanceScore * 0.5) + (radiusScore * 0.2) + (confidenceScore * 0.3);
+          (distanceScore * 0.4) +
+          (predictionScore * 0.2) +
+          (radiusScore * 0.15) +
+          (confidenceScore * 0.25);
 
       if (bestScore == null || score > bestScore) {
         bestScore = score;
