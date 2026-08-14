@@ -54,6 +54,8 @@ class MarkerCalibration {
       ),
       topDistancePixels: topDistancePixels,
       bottomDistancePixels: bottomDistancePixels,
+      topReferenceY: (topLeft.centerY + topRight.centerY) / 2.0,
+      bottomReferenceY: (bottomLeft.centerY + bottomRight.centerY) / 2.0,
     );
   }
 

@@ -8,6 +8,7 @@ import 'package:video_player/video_player.dart';
 import '../services/frame_extractor.dart';
 import '../services/image_inspector.dart';
 import '../models/tracking_session.dart';
+import '../models/marker_calibration_result.dart';
 import '../services/ball_tracker.dart';
 import '../services/marker_detector.dart';
 import '../services/marker_calibration.dart';
@@ -421,6 +422,8 @@ class _CameraScreenState extends State<CameraScreen>
     _trackingSession.clear();
     _frameAnalysisCount = 0;
 
+    MarkerCalibrationResult? calibration;
+
     final duration = videoController.value.duration;
 
     await for (final frame in FrameExtractor.extractFrames(
@@ -450,7 +453,7 @@ class _CameraScreenState extends State<CameraScreen>
           );
         }
 
-        final calibration = MarkerCalibration.calculate(markers);
+        calibration = MarkerCalibration.calculate(markers);
 
         if (calibration != null) {
           debugPrint(
@@ -505,6 +508,19 @@ class _CameraScreenState extends State<CameraScreen>
         'conf=${(trackedBall.confidence * 100).toStringAsFixed(1)}%',
       );
 
+      if (calibration != null) {
+        final pixelsPerMillimeter = calibration.pixelsPerMillimeterAtY(
+          trackedBall.centerY,
+        );
+
+        debugPrint(
+          'BALL SCALE '
+          'frame=${trackedBall.frameIndex} '
+          'y=${trackedBall.centerY.toStringAsFixed(1)} '
+          'scale=${pixelsPerMillimeter.toStringAsFixed(4)}px/mm',
+        );
+      }
+
       if (metrics != null) {
         debugPrint(
           'AutoTrackingMetrics '
@@ -512,6 +528,33 @@ class _CameraScreenState extends State<CameraScreen>
           'distance=${metrics.distancePixels.toStringAsFixed(2)}px '
           'speed=${metrics.speedPixelsPerSecond.toStringAsFixed(2)}px/s',
         );
+
+        if (calibration != null && _trackingSession.length >= 2) {
+          final previousBall =
+              _trackingSession.balls[_trackingSession.length - 2];
+
+          final middleY = (previousBall.centerY + trackedBall.centerY) / 2.0;
+
+          final pixelsPerMillimeter = calibration.pixelsPerMillimeterAtY(
+            middleY,
+          );
+
+          if (pixelsPerMillimeter > 0) {
+            final speedMillimetersPerSecond =
+                metrics.speedPixelsPerSecond / pixelsPerMillimeter;
+
+            final speedMetersPerSecond = speedMillimetersPerSecond / 1000.0;
+
+            debugPrint(
+              'REAL SPEED '
+              'frame=${previousBall.frameIndex}->${trackedBall.frameIndex} '
+              'middleY=${middleY.toStringAsFixed(1)} '
+              'scale=${pixelsPerMillimeter.toStringAsFixed(4)}px/mm '
+              'speed=${speedMillimetersPerSecond.toStringAsFixed(1)}mm/s '
+              'speed=${speedMetersPerSecond.toStringAsFixed(3)}m/s',
+            );
+          }
+        }
       }
 
       if (smoothedMetrics != null) {
