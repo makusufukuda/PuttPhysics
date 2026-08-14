@@ -9,6 +9,7 @@ import '../services/frame_extractor.dart';
 import '../services/image_inspector.dart';
 import '../models/tracking_session.dart';
 import '../services/ball_tracker.dart';
+import '../services/marker_detector.dart';
 import 'frame_preview_dialog.dart';
 import 'video_player_view.dart';
 
@@ -429,6 +430,24 @@ class _CameraScreenState extends State<CameraScreen>
 
       if (imageInfo == null) {
         continue;
+      }
+
+      if (_frameAnalysisCount == 0) {
+        final markers = MarkerDetector.detect(frame.imageBytes);
+
+        debugPrint('MARKER DETECTION count=${markers.length}');
+
+        for (final marker in markers) {
+          debugPrint(
+            'MARKER '
+            'position=${marker.position.name} '
+            'x=${marker.centerX.toStringAsFixed(1)} '
+            'y=${marker.centerY.toStringAsFixed(1)} '
+            'width=${marker.width} '
+            'height=${marker.height} '
+            'pixels=${marker.pixelCount}',
+          );
+        }
       }
 
       _frameAnalysisCount++;
