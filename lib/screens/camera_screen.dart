@@ -490,10 +490,11 @@ class _CameraScreenState extends State<CameraScreen>
     );
 
     final peak = _trackingSession.peakMetrics();
+    final smoothedPeak = _trackingSession.smoothedPeakMetrics();
 
     if (peak != null) {
       debugPrint(
-        'PEAK SPEED '
+        'RAW PEAK SPEED '
         'previousFrame=${peak.previous.frameIndex} '
         'frame=${peak.current.frameIndex} '
         'time=${peak.current.timestamp.inMilliseconds}ms '
@@ -532,13 +533,30 @@ class _CameraScreenState extends State<CameraScreen>
       }
     }
 
+    if (smoothedPeak != null) {
+      debugPrint(
+        'SMOOTHED PEAK SPEED '
+        'startFrame=${smoothedPeak.previous.frameIndex} '
+        'frame=${smoothedPeak.current.frameIndex} '
+        'time=${smoothedPeak.current.timestamp.inMilliseconds}ms '
+        'speed=${smoothedPeak.metrics.speedPixelsPerSecond.toStringAsFixed(2)}px/s '
+        'distance=${smoothedPeak.metrics.distancePixels.toStringAsFixed(2)}px '
+        'dt=${smoothedPeak.metrics.deltaTimeSeconds.toStringAsFixed(4)}s',
+      );
+    }
+
     if (mounted) {
       setState(() {
-        if (peak != null) {
+        if (smoothedPeak != null) {
+          _analysisResultMessage =
+              '解析完了: ${_trackingSession.length}フレーム追跡 / '
+              '最大速度 ${smoothedPeak.metrics.speedPixelsPerSecond.toStringAsFixed(1)} px/s '
+              '(平滑化)';
+        } else if (peak != null) {
           _analysisResultMessage =
               '解析完了: ${_trackingSession.length}フレーム追跡 / '
               '最大速度 ${peak.metrics.speedPixelsPerSecond.toStringAsFixed(1)} px/s '
-              '(frame ${peak.current.frameIndex})';
+              '(Raw)';
         } else {
           _analysisResultMessage = '解析完了: ${_trackingSession.length}フレーム追跡';
         }

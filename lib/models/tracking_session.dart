@@ -113,6 +113,63 @@ class TrackingSession {
     return results;
   }
 
+  PeakTrackingMetrics? smoothedPeakMetrics({int intervalCount = 3}) {
+    if (intervalCount < 1 || _balls.length < intervalCount + 1) {
+      return null;
+    }
+
+    PeakTrackingMetrics? peak;
+
+    for (var endIndex = intervalCount; endIndex < _balls.length; endIndex++) {
+      final startIndex = endIndex - intervalCount;
+
+      var totalDistance = 0.0;
+      var totalTime = 0.0;
+      var validWindow = true;
+
+      for (var i = startIndex + 1; i <= endIndex; i++) {
+        final previous = _balls[i - 1];
+        final current = _balls[i];
+
+        if (current.frameIndex != previous.frameIndex + 1) {
+          validWindow = false;
+          break;
+        }
+
+        final metrics = _calculateMetrics(previous: previous, current: current);
+
+        if (metrics == null) {
+          validWindow = false;
+          break;
+        }
+
+        totalDistance += metrics.distancePixels;
+        totalTime += metrics.deltaTimeSeconds;
+      }
+
+      if (!validWindow || totalTime <= 0) {
+        continue;
+      }
+
+      final metrics = TrackingMetrics(
+        deltaTimeSeconds: totalTime,
+        distancePixels: totalDistance,
+        speedPixelsPerSecond: totalDistance / totalTime,
+      );
+
+      if (peak == null ||
+          metrics.speedPixelsPerSecond > peak.metrics.speedPixelsPerSecond) {
+        peak = PeakTrackingMetrics(
+          previous: _balls[startIndex],
+          current: _balls[endIndex],
+          metrics: metrics,
+        );
+      }
+    }
+
+    return peak;
+  }
+
   PeakTrackingMetrics? peakMetrics() {
     if (_balls.length < 2) {
       return null;
