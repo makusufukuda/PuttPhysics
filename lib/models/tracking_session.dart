@@ -46,6 +46,44 @@ class TrackingSession {
     return _calculateMetrics(previous: previous, current: current);
   }
 
+  TrackingMetrics? latestSmoothedMetrics({int intervalCount = 3}) {
+    if (intervalCount < 1 || _balls.length < intervalCount + 1) {
+      return null;
+    }
+
+    final startIndex = _balls.length - intervalCount - 1;
+    var totalDistance = 0.0;
+    var totalTime = 0.0;
+
+    for (var i = startIndex + 1; i < _balls.length; i++) {
+      final previous = _balls[i - 1];
+      final current = _balls[i];
+
+      if (current.frameIndex != previous.frameIndex + 1) {
+        return null;
+      }
+
+      final metrics = _calculateMetrics(previous: previous, current: current);
+
+      if (metrics == null) {
+        return null;
+      }
+
+      totalDistance += metrics.distancePixels;
+      totalTime += metrics.deltaTimeSeconds;
+    }
+
+    if (totalTime <= 0) {
+      return null;
+    }
+
+    return TrackingMetrics(
+      deltaTimeSeconds: totalTime,
+      distancePixels: totalDistance,
+      speedPixelsPerSecond: totalDistance / totalTime,
+    );
+  }
+
   List<PeakTrackingMetrics> continuousMetrics() {
     final results = <PeakTrackingMetrics>[];
 

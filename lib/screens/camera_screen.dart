@@ -453,6 +453,7 @@ class _CameraScreenState extends State<CameraScreen>
       _trackingSession.add(trackedBall);
 
       final metrics = _trackingSession.latestMetrics();
+      final smoothedMetrics = _trackingSession.latestSmoothedMetrics();
 
       debugPrint(
         'AutoTrackedBall '
@@ -469,6 +470,15 @@ class _CameraScreenState extends State<CameraScreen>
           'dt=${metrics.deltaTimeSeconds.toStringAsFixed(4)}s '
           'distance=${metrics.distancePixels.toStringAsFixed(2)}px '
           'speed=${metrics.speedPixelsPerSecond.toStringAsFixed(2)}px/s',
+        );
+      }
+
+      if (smoothedMetrics != null) {
+        debugPrint(
+          'AutoTrackingSmoothed '
+          'dt=${smoothedMetrics.deltaTimeSeconds.toStringAsFixed(4)}s '
+          'distance=${smoothedMetrics.distancePixels.toStringAsFixed(2)}px '
+          'speed=${smoothedMetrics.speedPixelsPerSecond.toStringAsFixed(2)}px/s',
         );
       }
     }
