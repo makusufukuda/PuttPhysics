@@ -10,6 +10,7 @@ import '../services/image_inspector.dart';
 import '../models/tracking_session.dart';
 import '../services/ball_tracker.dart';
 import '../services/marker_detector.dart';
+import '../services/marker_calibration.dart';
 import 'frame_preview_dialog.dart';
 import 'video_player_view.dart';
 
@@ -446,6 +447,27 @@ class _CameraScreenState extends State<CameraScreen>
             'width=${marker.width} '
             'height=${marker.height} '
             'pixels=${marker.pixelCount}',
+          );
+        }
+
+        final calibration = MarkerCalibration.calculate(markers);
+
+        if (calibration != null) {
+          debugPrint(
+            'CALIBRATION '
+            'top=${calibration.topDistancePixels.toStringAsFixed(2)}px '
+            'topScale=${calibration.topScale.pixelsPerMillimeter.toStringAsFixed(4)}px/mm',
+          );
+
+          debugPrint(
+            'CALIBRATION '
+            'bottom=${calibration.bottomDistancePixels.toStringAsFixed(2)}px '
+            'bottomScale=${calibration.bottomScale.pixelsPerMillimeter.toStringAsFixed(4)}px/mm',
+          );
+
+          debugPrint(
+            'CALIBRATION '
+            'scaleDifference=${(calibration.scaleDifferenceRatio * 100).toStringAsFixed(1)}%',
           );
         }
       }
