@@ -573,6 +573,17 @@ class _CameraScreenState extends State<CameraScreen>
     final peak = _trackingSession.peakMetrics();
     final smoothedPeak = _trackingSession.smoothedPeakMetrics();
 
+    RealSpeedResult? smoothedRealSpeed;
+
+    if (calibration != null && smoothedPeak != null) {
+      smoothedRealSpeed = RealSpeedCalculator.calculate(
+        calibration: calibration,
+        previous: smoothedPeak.previous,
+        current: smoothedPeak.current,
+        metrics: smoothedPeak.metrics,
+      );
+    }
+
     if (peak != null) {
       debugPrint(
         'RAW PEAK SPEED '
@@ -628,7 +639,12 @@ class _CameraScreenState extends State<CameraScreen>
 
     if (mounted) {
       setState(() {
-        if (smoothedPeak != null) {
+        if (smoothedRealSpeed != null) {
+          _analysisResultMessage =
+              '解析完了: ${_trackingSession.length}フレーム追跡 / '
+              '実速度 ${smoothedRealSpeed.speedMetersPerSecond.toStringAsFixed(3)} m/s '
+              '(平滑化)';
+        } else if (smoothedPeak != null) {
           _analysisResultMessage =
               '解析完了: ${_trackingSession.length}フレーム追跡 / '
               '最大速度 ${smoothedPeak.metrics.speedPixelsPerSecond.toStringAsFixed(1)} px/s '
