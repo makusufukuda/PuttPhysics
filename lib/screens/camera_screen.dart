@@ -12,6 +12,7 @@ import '../models/marker_calibration_result.dart';
 import '../services/ball_tracker.dart';
 import '../services/marker_detector.dart';
 import '../services/marker_calibration.dart';
+import '../services/real_speed_calculator.dart';
 import 'frame_preview_dialog.dart';
 import 'video_player_view.dart';
 
@@ -533,25 +534,21 @@ class _CameraScreenState extends State<CameraScreen>
           final previousBall =
               _trackingSession.balls[_trackingSession.length - 2];
 
-          final middleY = (previousBall.centerY + trackedBall.centerY) / 2.0;
-
-          final pixelsPerMillimeter = calibration.pixelsPerMillimeterAtY(
-            middleY,
+          final realSpeed = RealSpeedCalculator.calculate(
+            calibration: calibration,
+            previous: previousBall,
+            current: trackedBall,
+            metrics: metrics,
           );
 
-          if (pixelsPerMillimeter > 0) {
-            final speedMillimetersPerSecond =
-                metrics.speedPixelsPerSecond / pixelsPerMillimeter;
-
-            final speedMetersPerSecond = speedMillimetersPerSecond / 1000.0;
-
+          if (realSpeed != null) {
             debugPrint(
               'REAL SPEED '
               'frame=${previousBall.frameIndex}->${trackedBall.frameIndex} '
-              'middleY=${middleY.toStringAsFixed(1)} '
-              'scale=${pixelsPerMillimeter.toStringAsFixed(4)}px/mm '
-              'speed=${speedMillimetersPerSecond.toStringAsFixed(1)}mm/s '
-              'speed=${speedMetersPerSecond.toStringAsFixed(3)}m/s',
+              'middleY=${realSpeed.middleY.toStringAsFixed(1)} '
+              'scale=${realSpeed.pixelsPerMillimeter.toStringAsFixed(4)}px/mm '
+              'speed=${realSpeed.speedMillimetersPerSecond.toStringAsFixed(1)}mm/s '
+              'speed=${realSpeed.speedMetersPerSecond.toStringAsFixed(3)}m/s',
             );
           }
         }
