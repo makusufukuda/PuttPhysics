@@ -147,6 +147,174 @@ void main() {
       expect(tracker.missedFrameCount, 0);
     });
 
+    test('accepts large movement when continuing in the same direction', () {
+      final tracker = BallTracker();
+
+      tracker.track(
+        frameIndex: 1,
+        timestamp: const Duration(milliseconds: 0),
+        candidates: const [
+          BallCandidate(
+            centerX: 594.5,
+            centerY: 920,
+            radius: 25,
+            confidence: 0.9,
+            isCombinedRedYellow: true,
+          ),
+        ],
+      );
+
+      final second = tracker.track(
+        frameIndex: 2,
+        timestamp: const Duration(milliseconds: 50),
+        candidates: const [
+          BallCandidate(
+            centerX: 533.0,
+            centerY: 922,
+            radius: 25,
+            confidence: 0.85,
+          ),
+        ],
+      );
+
+      expect(second, isNotNull);
+      expect(second!.centerX, 533.0);
+
+      final third = tracker.track(
+        frameIndex: 3,
+        timestamp: const Duration(milliseconds: 100),
+        candidates: const [
+          BallCandidate(
+            centerX: 386.5,
+            centerY: 927,
+            radius: 25,
+            confidence: 0.75,
+          ),
+        ],
+      );
+
+      // The ball has already started moving to the left.
+      // The next candidate continues in the same direction and is within
+      // the extended 160 pixel movement range.
+      expect(third, isNotNull);
+      expect(third!.centerX, 386.5);
+      expect(third.centerY, 927);
+    });
+
+    test('prefers forward candidate after high speed movement', () {
+      final tracker = BallTracker();
+
+      tracker.track(
+        frameIndex: 1,
+        timestamp: const Duration(milliseconds: 0),
+        candidates: const [
+          BallCandidate(
+            centerX: 612.5,
+            centerY: 920,
+            radius: 25,
+            confidence: 0.9,
+            isCombinedRedYellow: true,
+          ),
+        ],
+      );
+
+      final moved = tracker.track(
+        frameIndex: 2,
+        timestamp: const Duration(milliseconds: 50),
+        candidates: const [
+          BallCandidate(
+            centerX: 506.5,
+            centerY: 922,
+            radius: 25,
+            confidence: 0.8,
+          ),
+        ],
+      );
+
+      expect(moved, isNotNull);
+      expect(moved!.centerX, 506.5);
+
+      final result = tracker.track(
+        frameIndex: 3,
+        timestamp: const Duration(milliseconds: 100),
+        candidates: const [
+          BallCandidate(
+            centerX: 506.5,
+            centerY: 922,
+            radius: 25,
+            confidence: 0.95,
+          ),
+          BallCandidate(
+            centerX: 400.5,
+            centerY: 924,
+            radius: 25,
+            confidence: 0.75,
+          ),
+        ],
+      );
+
+      expect(result, isNotNull);
+
+      // Once the ball is moving quickly to the left, the candidate that
+      // continues in the same direction should be preferred over a
+      // high-confidence candidate left behind at the previous position.
+      expect(result!.centerX, 400.5);
+      expect(result.centerY, 924);
+    });
+
+    test('does not force direction preference after small movement', () {
+      final tracker = BallTracker(directionPreferenceThresholdPixels: 60);
+
+      tracker.track(
+        frameIndex: 1,
+        timestamp: const Duration(milliseconds: 0),
+        candidates: const [
+          BallCandidate(
+            centerX: 100,
+            centerY: 100,
+            radius: 20,
+            confidence: 0.9,
+            isCombinedRedYellow: true,
+          ),
+        ],
+      );
+
+      tracker.track(
+        frameIndex: 2,
+        timestamp: const Duration(milliseconds: 50),
+        candidates: const [
+          BallCandidate(
+            centerX: 120,
+            centerY: 100,
+            radius: 20,
+            confidence: 0.9,
+          ),
+        ],
+      );
+
+      final result = tracker.track(
+        frameIndex: 3,
+        timestamp: const Duration(milliseconds: 100),
+        candidates: const [
+          BallCandidate(
+            centerX: 120,
+            centerY: 100,
+            radius: 20,
+            confidence: 0.95,
+          ),
+          BallCandidate(
+            centerX: 140,
+            centerY: 100,
+            radius: 20,
+            confidence: 0.60,
+          ),
+        ],
+      );
+
+      expect(result, isNotNull);
+      expect(result!.centerX, 120);
+    });
+
     test(
       'accepts normal candidate beyond normal limit when prediction is strong',
       () {

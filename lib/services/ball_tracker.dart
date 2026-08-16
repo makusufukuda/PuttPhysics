@@ -11,6 +11,7 @@ class BallTracker {
     this.maximumMotionBlurMovementPixels = 300.0,
     this.maximumPredictedMovementPixels = 160.0,
     this.minimumPredictionScoreForExtendedMovement = 0.70,
+    this.directionPreferenceThresholdPixels = 60.0,
     this.maximumRadiusChangeRatio = 0.5,
     this.maximumMissedFrames = 3,
     this.movementStartThresholdPixels = 20.0,
@@ -20,6 +21,7 @@ class BallTracker {
   final double maximumMotionBlurMovementPixels;
   final double maximumPredictedMovementPixels;
   final double minimumPredictionScoreForExtendedMovement;
+  final double directionPreferenceThresholdPixels;
   final double maximumRadiusChangeRatio;
   final int maximumMissedFrames;
   final double movementStartThresholdPixels;
@@ -115,7 +117,11 @@ class BallTracker {
     return candidates.first;
   }
 
-  double _predictionScore(BallCandidate candidate, Duration timestamp) {
+  double _predictionScore(
+    BallCandidate candidate,
+    Duration timestamp, {
+    int? frameIndex,
+  }) {
     final previous = _previousTrackedBall;
     final last = _lastTrackedBall;
 
@@ -145,7 +151,33 @@ class BallTracker {
     final dy = candidate.centerY - predictedY;
     final predictionDistance = math.sqrt((dx * dx) + (dy * dy));
 
-    return (1.0 - (predictionDistance / maximumMovementPixels)).clamp(0.0, 1.0);
+    final predictionScore = (1.0 - (predictionDistance / maximumMovementPixels))
+        .clamp(0.0, 1.0);
+
+    if (frameIndex != null) {
+      debugPrint(
+        'TRACKER PREDICTION '
+        'frame=$frameIndex '
+        'previousFrame=${previous.frameIndex} '
+        'lastFrame=${last.frameIndex} '
+        'previousX=${previous.centerX.toStringAsFixed(1)} '
+        'previousY=${previous.centerY.toStringAsFixed(1)} '
+        'lastX=${last.centerX.toStringAsFixed(1)} '
+        'lastY=${last.centerY.toStringAsFixed(1)} '
+        'sampleTime=${sampleTime.toStringAsFixed(4)} '
+        'futureTime=${futureTime.toStringAsFixed(4)} '
+        'velocityX=${velocityX.toStringAsFixed(1)} '
+        'velocityY=${velocityY.toStringAsFixed(1)} '
+        'predictedX=${predictedX.toStringAsFixed(1)} '
+        'predictedY=${predictedY.toStringAsFixed(1)} '
+        'candidateX=${candidate.centerX.toStringAsFixed(1)} '
+        'candidateY=${candidate.centerY.toStringAsFixed(1)} '
+        'error=${predictionDistance.toStringAsFixed(1)} '
+        'score=${predictionScore.toStringAsFixed(3)}',
+      );
+    }
+
+    return predictionScore;
   }
 
   BallCandidate? _findBestMatchingCandidate(
@@ -169,17 +201,42 @@ class BallTracker {
       final dy = candidate.centerY - previous.centerY;
       final distance = math.sqrt((dx * dx) + (dy * dy));
 
-      final predictionScore = _predictionScore(candidate, timestamp);
+      final predictionScore = _predictionScore(
+        candidate,
+        timestamp,
+        frameIndex: frameIndex,
+      );
 
       var movementLimit = candidate.isMotionBlur
           ? maximumMotionBlurMovementPixels
           : maximumMovementPixels;
 
+      final previousTracked = _previousTrackedBall;
+      final lastTracked = _lastTrackedBall;
+
+      var sameDirection = false;
+
+      if (previousTracked != null && lastTracked != null) {
+        final previousDx = lastTracked.centerX - previousTracked.centerX;
+        final previousDy = lastTracked.centerY - previousTracked.centerY;
+
+        final candidateDx = candidate.centerX - lastTracked.centerX;
+        final candidateDy = candidate.centerY - lastTracked.centerY;
+
+        final directionDot =
+            (previousDx * candidateDx) + (previousDy * candidateDy);
+
+        sameDirection = directionDot > 0;
+      }
+
       final canUsePredictedMovementLimit =
           !candidate.isMotionBlur &&
           predictionScore >= minimumPredictionScoreForExtendedMovement;
 
-      if (canUsePredictedMovementLimit &&
+      final canUseDirectionalMovementLimit =
+          !candidate.isMotionBlur && _movementStarted && sameDirection;
+
+      if ((canUsePredictedMovementLimit || canUseDirectionalMovementLimit) &&
           maximumPredictedMovementPixels > movementLimit) {
         movementLimit = maximumPredictedMovementPixels;
       }
@@ -194,6 +251,7 @@ class BallTracker {
           'distance=${distance.toStringAsFixed(1)} '
           'max=${movementLimit.toStringAsFixed(1)} '
           'prediction=${predictionScore.toStringAsFixed(3)} '
+          'sameDirection=$sameDirection '
           'radius=${candidate.radius.toStringAsFixed(1)} '
           'motionBlur=${candidate.isMotionBlur}',
         );
@@ -226,11 +284,28 @@ class BallTracker {
       final radiusScore = 1.0 - radiusChangeRatio;
       final confidenceScore = candidate.confidence;
 
-      final score =
-          (distanceScore * 0.4) +
-          (predictionScore * 0.2) +
-          (radiusScore * 0.15) +
-          (confidenceScore * 0.25);
+      var directionPreferenceActive = false;
+
+      if (previousTracked != null && lastTracked != null) {
+        final previousDx = lastTracked.centerX - previousTracked.centerX;
+        final previousDy = lastTracked.centerY - previousTracked.centerY;
+        final previousMovement = math.sqrt(
+          (previousDx * previousDx) + (previousDy * previousDy),
+        );
+
+        directionPreferenceActive =
+            previousMovement >= directionPreferenceThresholdPixels;
+      }
+
+      final score = directionPreferenceActive
+          ? (distanceScore * 0.20) +
+                (predictionScore * 0.45) +
+                (radiusScore * 0.10) +
+                (confidenceScore * 0.25)
+          : (distanceScore * 0.40) +
+                (predictionScore * 0.20) +
+                (radiusScore * 0.15) +
+                (confidenceScore * 0.25);
 
       debugPrint(
         'TRACKER CANDIDATE '
@@ -243,6 +318,8 @@ class BallTracker {
         'confidence=${candidate.confidence.toStringAsFixed(3)} '
         'prediction=${predictionScore.toStringAsFixed(3)} '
         'score=${score.toStringAsFixed(3)} '
+        'directionPreference=$directionPreferenceActive '
+        'sameDirection=$sameDirection '
         'combined=${candidate.isCombinedRedYellow} '
         'motionBlur=${candidate.isMotionBlur}',
       );
