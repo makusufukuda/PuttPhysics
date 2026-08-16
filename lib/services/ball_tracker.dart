@@ -1,17 +1,25 @@
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
+
 import '../models/ball_candidate.dart';
 import '../models/tracked_ball.dart';
 
 class BallTracker {
   BallTracker({
     this.maximumMovementPixels = 120.0,
+    this.maximumMotionBlurMovementPixels = 300.0,
+    this.maximumPredictedMovementPixels = 160.0,
+    this.minimumPredictionScoreForExtendedMovement = 0.70,
     this.maximumRadiusChangeRatio = 0.5,
     this.maximumMissedFrames = 3,
     this.movementStartThresholdPixels = 20.0,
   });
 
   final double maximumMovementPixels;
+  final double maximumMotionBlurMovementPixels;
+  final double maximumPredictedMovementPixels;
+  final double minimumPredictionScoreForExtendedMovement;
   final double maximumRadiusChangeRatio;
   final int maximumMissedFrames;
   final double movementStartThresholdPixels;
@@ -51,7 +59,7 @@ class BallTracker {
 
     final selectedCandidate = _lastTrackedBall == null
         ? _selectInitialCandidate(candidates)
-        : _findBestMatchingCandidate(candidates, timestamp);
+        : _findBestMatchingCandidate(candidates, timestamp, frameIndex);
 
     if (selectedCandidate == null) {
       _registerMiss();
@@ -143,6 +151,7 @@ class BallTracker {
   BallCandidate? _findBestMatchingCandidate(
     List<BallCandidate> candidates,
     Duration timestamp,
+    int frameIndex,
   ) {
     final previous = _lastTrackedBall;
 
@@ -160,7 +169,34 @@ class BallTracker {
       final dy = candidate.centerY - previous.centerY;
       final distance = math.sqrt((dx * dx) + (dy * dy));
 
-      if (distance > maximumMovementPixels) {
+      final predictionScore = _predictionScore(candidate, timestamp);
+
+      var movementLimit = candidate.isMotionBlur
+          ? maximumMotionBlurMovementPixels
+          : maximumMovementPixels;
+
+      final canUsePredictedMovementLimit =
+          !candidate.isMotionBlur &&
+          predictionScore >= minimumPredictionScoreForExtendedMovement;
+
+      if (canUsePredictedMovementLimit &&
+          maximumPredictedMovementPixels > movementLimit) {
+        movementLimit = maximumPredictedMovementPixels;
+      }
+
+      if (distance > movementLimit) {
+        debugPrint(
+          'TRACKER REJECT '
+          'frame=$frameIndex '
+          'reason=movement '
+          'candidateX=${candidate.centerX.toStringAsFixed(1)} '
+          'candidateY=${candidate.centerY.toStringAsFixed(1)} '
+          'distance=${distance.toStringAsFixed(1)} '
+          'max=${movementLimit.toStringAsFixed(1)} '
+          'prediction=${predictionScore.toStringAsFixed(3)} '
+          'radius=${candidate.radius.toStringAsFixed(1)} '
+          'motionBlur=${candidate.isMotionBlur}',
+        );
         continue;
       }
 
@@ -170,11 +206,23 @@ class BallTracker {
           : (candidate.radius - previousRadius).abs() / previousRadius;
 
       if (radiusChangeRatio > maximumRadiusChangeRatio) {
+        debugPrint(
+          'TRACKER REJECT '
+          'frame=$frameIndex '
+          'reason=radius '
+          'candidateX=${candidate.centerX.toStringAsFixed(1)} '
+          'candidateY=${candidate.centerY.toStringAsFixed(1)} '
+          'distance=${distance.toStringAsFixed(1)} '
+          'previousRadius=${previousRadius.toStringAsFixed(1)} '
+          'candidateRadius=${candidate.radius.toStringAsFixed(1)} '
+          'radiusChange=${radiusChangeRatio.toStringAsFixed(3)} '
+          'max=${maximumRadiusChangeRatio.toStringAsFixed(3)} '
+          'motionBlur=${candidate.isMotionBlur}',
+        );
         continue;
       }
 
-      final distanceScore = 1.0 - (distance / maximumMovementPixels);
-      final predictionScore = _predictionScore(candidate, timestamp);
+      final distanceScore = 1.0 - (distance / movementLimit);
       final radiusScore = 1.0 - radiusChangeRatio;
       final confidenceScore = candidate.confidence;
 
@@ -183,6 +231,21 @@ class BallTracker {
           (predictionScore * 0.2) +
           (radiusScore * 0.15) +
           (confidenceScore * 0.25);
+
+      debugPrint(
+        'TRACKER CANDIDATE '
+        'frame=$frameIndex '
+        'x=${candidate.centerX.toStringAsFixed(1)} '
+        'y=${candidate.centerY.toStringAsFixed(1)} '
+        'distance=${distance.toStringAsFixed(1)} '
+        'radius=${candidate.radius.toStringAsFixed(1)} '
+        'radiusChange=${radiusChangeRatio.toStringAsFixed(3)} '
+        'confidence=${candidate.confidence.toStringAsFixed(3)} '
+        'prediction=${predictionScore.toStringAsFixed(3)} '
+        'score=${score.toStringAsFixed(3)} '
+        'combined=${candidate.isCombinedRedYellow} '
+        'motionBlur=${candidate.isMotionBlur}',
+      );
 
       if (bestScore == null || score > bestScore) {
         bestScore = score;
@@ -202,7 +265,35 @@ class BallTracker {
         bestCombinedScore != null &&
         bestScore != null &&
         bestCombinedScore >= bestScore - combinedPreferenceTolerance) {
+      debugPrint(
+        'TRACKER SELECT '
+        'frame=$frameIndex '
+        'type=combined '
+        'x=${bestCombinedCandidate.centerX.toStringAsFixed(1)} '
+        'y=${bestCombinedCandidate.centerY.toStringAsFixed(1)} '
+        'score=${bestCombinedScore.toStringAsFixed(3)}',
+      );
       return bestCombinedCandidate;
+    }
+
+    if (bestCandidate != null && bestScore != null) {
+      debugPrint(
+        'TRACKER SELECT '
+        'frame=$frameIndex '
+        'type=${bestCandidate.isMotionBlur ? 'motionBlur' : 'normal'} '
+        'x=${bestCandidate.centerX.toStringAsFixed(1)} '
+        'y=${bestCandidate.centerY.toStringAsFixed(1)} '
+        'score=${bestScore.toStringAsFixed(3)}',
+      );
+    } else {
+      debugPrint(
+        'TRACKER NO MATCH '
+        'frame=$frameIndex '
+        'previousX=${previous.centerX.toStringAsFixed(1)} '
+        'previousY=${previous.centerY.toStringAsFixed(1)} '
+        'previousRadius=${previous.radius.toStringAsFixed(1)} '
+        'candidateCount=${candidates.length}',
+      );
     }
 
     return bestCandidate;
