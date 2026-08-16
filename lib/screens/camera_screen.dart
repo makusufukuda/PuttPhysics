@@ -485,11 +485,19 @@ class _CameraScreenState extends State<CameraScreen>
       );
 
       if (trackedBall == null) {
+        final largestBlob = imageInfo.largestBlob;
+
         debugPrint(
           'AutoTrackMiss '
           'frame=$_frameAnalysisCount '
           'time=${frame.position.inMilliseconds}ms '
           'candidates=${imageInfo.ballCandidates.length} '
+          'targetPixels=${imageInfo.targetColorPixels} '
+          'blobs=${imageInfo.blobCount} '
+          'largestPixels=${largestBlob?.pixelCount ?? 0} '
+          'largestWidth=${largestBlob?.width ?? 0} '
+          'largestHeight=${largestBlob?.height ?? 0} '
+          'largestFill=${largestBlob?.fillRatio.toStringAsFixed(3) ?? '-'} '
           'missedFrames=${_ballTracker.missedFrameCount}',
         );
         continue;
