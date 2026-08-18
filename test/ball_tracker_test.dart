@@ -677,6 +677,129 @@ void main() {
       expect(tracker.missedFrameCount, 1);
     });
 
+    test('accepts first large launch movement from stationary ball', () {
+      final tracker = BallTracker();
+
+      tracker.track(
+        frameIndex: 97,
+        timestamp: const Duration(milliseconds: 3233),
+        candidates: const [
+          BallCandidate(
+            centerX: 600,
+            centerY: 900,
+            radius: 25,
+            confidence: 0.9,
+            isCombinedRedYellow: true,
+          ),
+        ],
+      );
+
+      final stationary = tracker.track(
+        frameIndex: 98,
+        timestamp: const Duration(milliseconds: 3266),
+        candidates: const [
+          BallCandidate(
+            centerX: 600,
+            centerY: 900,
+            radius: 25,
+            confidence: 0.9,
+            isCombinedRedYellow: true,
+          ),
+        ],
+      );
+
+      expect(stationary, isNotNull);
+
+      final launched = tracker.track(
+        frameIndex: 99,
+        timestamp: const Duration(milliseconds: 3300),
+        candidates: const [
+          BallCandidate(
+            centerX: 425,
+            centerY: 900,
+            radius: 25,
+            confidence: 0.85,
+            isCombinedRedYellow: true,
+          ),
+        ],
+      );
+
+      // A real ball can move more than the normal 120 px limit
+      // on the first frame immediately after launch.
+      expect(launched, isNotNull);
+      expect(launched!.centerX, 425);
+      expect(launched.centerY, 900);
+      expect(tracker.missedFrameCount, 0);
+    });
+
+    test('accepts radius growth during high speed forward movement', () {
+      final tracker = BallTracker();
+
+      tracker.track(
+        frameIndex: 76,
+        timestamp: const Duration(milliseconds: 3750),
+        candidates: const [
+          BallCandidate(
+            centerX: 471.5,
+            centerY: 1045.5,
+            radius: 23.0,
+            confidence: 0.854,
+            isCombinedRedYellow: true,
+          ),
+        ],
+      );
+
+      final firstMove = tracker.track(
+        frameIndex: 77,
+        timestamp: const Duration(milliseconds: 3800),
+        candidates: const [
+          BallCandidate(
+            centerX: 362.5,
+            centerY: 1040.5,
+            radius: 19.0,
+            confidence: 0.721,
+          ),
+        ],
+      );
+
+      expect(firstMove, isNotNull);
+
+      final secondMove = tracker.track(
+        frameIndex: 78,
+        timestamp: const Duration(milliseconds: 3850),
+        candidates: const [
+          BallCandidate(
+            centerX: 287.5,
+            centerY: 1038.5,
+            radius: 16.5,
+            confidence: 0.473,
+          ),
+        ],
+      );
+
+      expect(secondMove, isNotNull);
+
+      final thirdMove = tracker.track(
+        frameIndex: 79,
+        timestamp: const Duration(milliseconds: 3900),
+        candidates: const [
+          BallCandidate(
+            centerX: 147.5,
+            centerY: 1050.5,
+            radius: 25.5,
+            confidence: 0.70,
+          ),
+        ],
+      );
+
+      // During high-speed forward movement, a real ball candidate can
+      // temporarily change apparent radius because of blur / shape changes.
+      expect(thirdMove, isNotNull);
+      expect(thirdMove!.centerX, 147.5);
+      expect(thirdMove.centerY, 1050.5);
+      expect(tracker.missedFrameCount, 0);
+    });
+
     test('ends tracking after repeated misses once movement started', () {
       final tracker = BallTracker(
         maximumMissedFrames: 3,

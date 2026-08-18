@@ -10,9 +10,11 @@ class BallTracker {
     this.maximumMovementPixels = 120.0,
     this.maximumMotionBlurMovementPixels = 300.0,
     this.maximumPredictedMovementPixels = 160.0,
+    this.maximumLaunchMovementPixels = 180.0,
     this.minimumPredictionScoreForExtendedMovement = 0.70,
     this.directionPreferenceThresholdPixels = 60.0,
     this.maximumRadiusChangeRatio = 0.5,
+    this.maximumHighSpeedRadiusChangeRatio = 0.60,
     this.maximumMissedFrames = 3,
     this.movementStartThresholdPixels = 20.0,
   });
@@ -20,9 +22,11 @@ class BallTracker {
   final double maximumMovementPixels;
   final double maximumMotionBlurMovementPixels;
   final double maximumPredictedMovementPixels;
+  final double maximumLaunchMovementPixels;
   final double minimumPredictionScoreForExtendedMovement;
   final double directionPreferenceThresholdPixels;
   final double maximumRadiusChangeRatio;
+  final double maximumHighSpeedRadiusChangeRatio;
   final int maximumMissedFrames;
   final double movementStartThresholdPixels;
 
@@ -236,9 +240,30 @@ class BallTracker {
       final canUseDirectionalMovementLimit =
           !candidate.isMotionBlur && _movementStarted && sameDirection;
 
+      var canUseLaunchMovementLimit = false;
+
+      if (!candidate.isMotionBlur &&
+          !_movementStarted &&
+          previousTracked != null &&
+          lastTracked != null) {
+        final previousDx = lastTracked.centerX - previousTracked.centerX;
+        final previousDy = lastTracked.centerY - previousTracked.centerY;
+        final previousMovement = math.sqrt(
+          (previousDx * previousDx) + (previousDy * previousDy),
+        );
+
+        canUseLaunchMovementLimit =
+            previousMovement < movementStartThresholdPixels;
+      }
+
       if ((canUsePredictedMovementLimit || canUseDirectionalMovementLimit) &&
           maximumPredictedMovementPixels > movementLimit) {
         movementLimit = maximumPredictedMovementPixels;
+      }
+
+      if (canUseLaunchMovementLimit &&
+          maximumLaunchMovementPixels > movementLimit) {
+        movementLimit = maximumLaunchMovementPixels;
       }
 
       if (distance > movementLimit) {
@@ -263,7 +288,25 @@ class BallTracker {
           ? 0.0
           : (candidate.radius - previousRadius).abs() / previousRadius;
 
-      if (radiusChangeRatio > maximumRadiusChangeRatio) {
+      var radiusChangeLimit = maximumRadiusChangeRatio;
+
+      if (_movementStarted &&
+          sameDirection &&
+          previousTracked != null &&
+          lastTracked != null) {
+        final previousDx = lastTracked.centerX - previousTracked.centerX;
+        final previousDy = lastTracked.centerY - previousTracked.centerY;
+        final previousMovement = math.sqrt(
+          (previousDx * previousDx) + (previousDy * previousDy),
+        );
+
+        if (previousMovement >= directionPreferenceThresholdPixels &&
+            maximumHighSpeedRadiusChangeRatio > radiusChangeLimit) {
+          radiusChangeLimit = maximumHighSpeedRadiusChangeRatio;
+        }
+      }
+
+      if (radiusChangeRatio > radiusChangeLimit) {
         debugPrint(
           'TRACKER REJECT '
           'frame=$frameIndex '
@@ -274,7 +317,7 @@ class BallTracker {
           'previousRadius=${previousRadius.toStringAsFixed(1)} '
           'candidateRadius=${candidate.radius.toStringAsFixed(1)} '
           'radiusChange=${radiusChangeRatio.toStringAsFixed(3)} '
-          'max=${maximumRadiusChangeRatio.toStringAsFixed(3)} '
+          'max=${radiusChangeLimit.toStringAsFixed(3)} '
           'motionBlur=${candidate.isMotionBlur}',
         );
         continue;
