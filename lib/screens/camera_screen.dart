@@ -64,6 +64,7 @@ class _CameraScreenState extends State<CameraScreen>
   String? _errorMessage;
   String? _analysisResultMessage;
   bool _isRecording = false;
+  bool _isAnalyzingVideo = false;
 
   @override
   void initState() {
@@ -409,6 +410,11 @@ class _CameraScreenState extends State<CameraScreen>
   }
 
   Future<void> _analyzeRecordedVideoFrames() async {
+    if (_isAnalyzingVideo) {
+      debugPrint('AutoTracking ignored: analysis already running');
+      return;
+    }
+
     final videoController = _videoPlayerController;
     final videoPath = _recordedVideoPath;
 
@@ -419,253 +425,271 @@ class _CameraScreenState extends State<CameraScreen>
       return;
     }
 
-    _ballTracker.reset();
-    _trackingSession.clear();
-    _frameAnalysisCount = 0;
+    if (mounted) {
+      setState(() {
+        _isAnalyzingVideo = true;
+      });
+    } else {
+      _isAnalyzingVideo = true;
+    }
 
-    MarkerCalibrationResult? calibration;
+    try {
+      _ballTracker.reset();
+      _trackingSession.clear();
+      _frameAnalysisCount = 0;
 
-    final duration = videoController.value.duration;
+      MarkerCalibrationResult? calibration;
 
-    await for (final frame in FrameExtractor.extractFrames(
-      videoPath: videoPath,
-      duration: duration,
-    )) {
-      final imageInfo = ImageInspector.inspect(frame.imageBytes);
+      final duration = videoController.value.duration;
 
-      if (imageInfo == null) {
-        continue;
-      }
+      await for (final frame in FrameExtractor.extractFrames(
+        videoPath: videoPath,
+        duration: duration,
+      )) {
+        final imageInfo = ImageInspector.inspect(frame.imageBytes);
 
-      if (_frameAnalysisCount == 0) {
-        final markers = MarkerDetector.detect(frame.imageBytes);
-
-        debugPrint('MARKER DETECTION count=${markers.length}');
-
-        for (final marker in markers) {
-          debugPrint(
-            'MARKER '
-            'position=${marker.position.name} '
-            'x=${marker.centerX.toStringAsFixed(1)} '
-            'y=${marker.centerY.toStringAsFixed(1)} '
-            'width=${marker.width} '
-            'height=${marker.height} '
-            'pixels=${marker.pixelCount}',
-          );
+        if (imageInfo == null) {
+          continue;
         }
 
-        calibration = MarkerCalibration.calculate(markers);
+        if (_frameAnalysisCount == 0) {
+          final markers = MarkerDetector.detect(frame.imageBytes);
+
+          debugPrint('MARKER DETECTION count=${markers.length}');
+
+          for (final marker in markers) {
+            debugPrint(
+              'MARKER '
+              'position=${marker.position.name} '
+              'x=${marker.centerX.toStringAsFixed(1)} '
+              'y=${marker.centerY.toStringAsFixed(1)} '
+              'width=${marker.width} '
+              'height=${marker.height} '
+              'pixels=${marker.pixelCount}',
+            );
+          }
+
+          calibration = MarkerCalibration.calculate(markers);
+
+          if (calibration != null) {
+            debugPrint(
+              'CALIBRATION '
+              'top=${calibration.topDistancePixels.toStringAsFixed(2)}px '
+              'topScale=${calibration.topScale.pixelsPerMillimeter.toStringAsFixed(4)}px/mm',
+            );
+
+            debugPrint(
+              'CALIBRATION '
+              'bottom=${calibration.bottomDistancePixels.toStringAsFixed(2)}px '
+              'bottomScale=${calibration.bottomScale.pixelsPerMillimeter.toStringAsFixed(4)}px/mm',
+            );
+
+            debugPrint(
+              'CALIBRATION '
+              'scaleDifference=${(calibration.scaleDifferenceRatio * 100).toStringAsFixed(1)}%',
+            );
+          }
+        }
+
+        _frameAnalysisCount++;
+
+        final trackedBall = _ballTracker.track(
+          frameIndex: _frameAnalysisCount,
+          timestamp: frame.position,
+          candidates: imageInfo.ballCandidates,
+        );
+
+        if (trackedBall == null) {
+          final largestBlob = imageInfo.largestBlob;
+
+          debugPrint(
+            'AutoTrackMiss '
+            'frame=$_frameAnalysisCount '
+            'time=${frame.position.inMilliseconds}ms '
+            'candidates=${imageInfo.ballCandidates.length} '
+            'targetPixels=${imageInfo.targetColorPixels} '
+            'blobs=${imageInfo.blobCount} '
+            'largestPixels=${largestBlob?.pixelCount ?? 0} '
+            'largestWidth=${largestBlob?.width ?? 0} '
+            'largestHeight=${largestBlob?.height ?? 0} '
+            'largestFill=${largestBlob?.fillRatio.toStringAsFixed(3) ?? '-'} '
+            'missedFrames=${_ballTracker.missedFrameCount}',
+          );
+          continue;
+        }
+
+        _trackingSession.add(trackedBall);
+
+        final metrics = _trackingSession.latestMetrics();
+        final smoothedMetrics = _trackingSession.latestSmoothedMetrics();
+
+        debugPrint(
+          'AutoTrackedBall '
+          'frame=${trackedBall.frameIndex} '
+          'time=${trackedBall.timestamp.inMilliseconds}ms '
+          'x=${trackedBall.centerX.toStringAsFixed(1)} '
+          'y=${trackedBall.centerY.toStringAsFixed(1)} '
+          'conf=${(trackedBall.confidence * 100).toStringAsFixed(1)}%',
+        );
 
         if (calibration != null) {
-          debugPrint(
-            'CALIBRATION '
-            'top=${calibration.topDistancePixels.toStringAsFixed(2)}px '
-            'topScale=${calibration.topScale.pixelsPerMillimeter.toStringAsFixed(4)}px/mm',
+          final pixelsPerMillimeter = calibration.pixelsPerMillimeterAtY(
+            trackedBall.centerY,
           );
 
           debugPrint(
-            'CALIBRATION '
-            'bottom=${calibration.bottomDistancePixels.toStringAsFixed(2)}px '
-            'bottomScale=${calibration.bottomScale.pixelsPerMillimeter.toStringAsFixed(4)}px/mm',
+            'BALL SCALE '
+            'frame=${trackedBall.frameIndex} '
+            'y=${trackedBall.centerY.toStringAsFixed(1)} '
+            'scale=${pixelsPerMillimeter.toStringAsFixed(4)}px/mm',
+          );
+        }
+
+        if (metrics != null) {
+          debugPrint(
+            'AutoTrackingMetrics '
+            'dt=${metrics.deltaTimeSeconds.toStringAsFixed(4)}s '
+            'distance=${metrics.distancePixels.toStringAsFixed(2)}px '
+            'speed=${metrics.speedPixelsPerSecond.toStringAsFixed(2)}px/s',
           );
 
+          if (calibration != null && _trackingSession.length >= 2) {
+            final previousBall =
+                _trackingSession.balls[_trackingSession.length - 2];
+
+            final realSpeed = RealSpeedCalculator.calculate(
+              calibration: calibration,
+              previous: previousBall,
+              current: trackedBall,
+              metrics: metrics,
+            );
+
+            if (realSpeed != null) {
+              debugPrint(
+                'REAL SPEED '
+                'frame=${previousBall.frameIndex}->${trackedBall.frameIndex} '
+                'middleY=${realSpeed.middleY.toStringAsFixed(1)} '
+                'scale=${realSpeed.pixelsPerMillimeter.toStringAsFixed(4)}px/mm '
+                'speed=${realSpeed.speedMillimetersPerSecond.toStringAsFixed(1)}mm/s '
+                'speed=${realSpeed.speedMetersPerSecond.toStringAsFixed(3)}m/s',
+              );
+            }
+          }
+        }
+
+        if (smoothedMetrics != null) {
           debugPrint(
-            'CALIBRATION '
-            'scaleDifference=${(calibration.scaleDifferenceRatio * 100).toStringAsFixed(1)}%',
+            'AutoTrackingSmoothed '
+            'dt=${smoothedMetrics.deltaTimeSeconds.toStringAsFixed(4)}s '
+            'distance=${smoothedMetrics.distancePixels.toStringAsFixed(2)}px '
+            'speed=${smoothedMetrics.speedPixelsPerSecond.toStringAsFixed(2)}px/s',
           );
         }
       }
 
-      _frameAnalysisCount++;
-
-      final trackedBall = _ballTracker.track(
-        frameIndex: _frameAnalysisCount,
-        timestamp: frame.position,
-        candidates: imageInfo.ballCandidates,
-      );
-
-      if (trackedBall == null) {
-        final largestBlob = imageInfo.largestBlob;
-
-        debugPrint(
-          'AutoTrackMiss '
-          'frame=$_frameAnalysisCount '
-          'time=${frame.position.inMilliseconds}ms '
-          'candidates=${imageInfo.ballCandidates.length} '
-          'targetPixels=${imageInfo.targetColorPixels} '
-          'blobs=${imageInfo.blobCount} '
-          'largestPixels=${largestBlob?.pixelCount ?? 0} '
-          'largestWidth=${largestBlob?.width ?? 0} '
-          'largestHeight=${largestBlob?.height ?? 0} '
-          'largestFill=${largestBlob?.fillRatio.toStringAsFixed(3) ?? '-'} '
-          'missedFrames=${_ballTracker.missedFrameCount}',
-        );
-        continue;
-      }
-
-      _trackingSession.add(trackedBall);
-
-      final metrics = _trackingSession.latestMetrics();
-      final smoothedMetrics = _trackingSession.latestSmoothedMetrics();
-
       debugPrint(
-        'AutoTrackedBall '
-        'frame=${trackedBall.frameIndex} '
-        'time=${trackedBall.timestamp.inMilliseconds}ms '
-        'x=${trackedBall.centerX.toStringAsFixed(1)} '
-        'y=${trackedBall.centerY.toStringAsFixed(1)} '
-        'conf=${(trackedBall.confidence * 100).toStringAsFixed(1)}%',
+        'AutoTracking finished '
+        'frames=$_frameAnalysisCount '
+        'tracked=${_trackingSession.length}',
       );
 
-      if (calibration != null) {
-        final pixelsPerMillimeter = calibration.pixelsPerMillimeterAtY(
-          trackedBall.centerY,
-        );
+      final peak = _trackingSession.peakMetrics();
+      final smoothedPeak = _trackingSession.smoothedPeakMetrics();
 
-        debugPrint(
-          'BALL SCALE '
-          'frame=${trackedBall.frameIndex} '
-          'y=${trackedBall.centerY.toStringAsFixed(1)} '
-          'scale=${pixelsPerMillimeter.toStringAsFixed(4)}px/mm',
+      RealSpeedResult? smoothedRealSpeed;
+
+      if (calibration != null && smoothedPeak != null) {
+        smoothedRealSpeed = RealSpeedCalculator.calculate(
+          calibration: calibration,
+          previous: smoothedPeak.previous,
+          current: smoothedPeak.current,
+          metrics: smoothedPeak.metrics,
         );
       }
 
-      if (metrics != null) {
+      if (peak != null) {
         debugPrint(
-          'AutoTrackingMetrics '
-          'dt=${metrics.deltaTimeSeconds.toStringAsFixed(4)}s '
-          'distance=${metrics.distancePixels.toStringAsFixed(2)}px '
-          'speed=${metrics.speedPixelsPerSecond.toStringAsFixed(2)}px/s',
+          'RAW PEAK SPEED '
+          'previousFrame=${peak.previous.frameIndex} '
+          'frame=${peak.current.frameIndex} '
+          'time=${peak.current.timestamp.inMilliseconds}ms '
+          'speed=${peak.metrics.speedPixelsPerSecond.toStringAsFixed(2)}px/s '
+          'distance=${peak.metrics.distancePixels.toStringAsFixed(2)}px '
+          'dt=${peak.metrics.deltaTimeSeconds.toStringAsFixed(4)}s',
         );
 
-        if (calibration != null && _trackingSession.length >= 2) {
-          final previousBall =
-              _trackingSession.balls[_trackingSession.length - 2];
+        final continuousMetrics = _trackingSession.continuousMetrics();
+        final peakIndex = continuousMetrics.indexWhere(
+          (item) =>
+              item.previous.frameIndex == peak.previous.frameIndex &&
+              item.current.frameIndex == peak.current.frameIndex,
+        );
 
-          final realSpeed = RealSpeedCalculator.calculate(
-            calibration: calibration,
-            previous: previousBall,
-            current: trackedBall,
-            metrics: metrics,
-          );
+        if (peakIndex >= 0) {
+          debugPrint('===== PEAK CONTEXT =====');
 
-          if (realSpeed != null) {
+          final start = peakIndex - 3 < 0 ? 0 : peakIndex - 3;
+          final end = peakIndex + 3 >= continuousMetrics.length
+              ? continuousMetrics.length - 1
+              : peakIndex + 3;
+
+          for (var i = start; i <= end; i++) {
+            final item = continuousMetrics[i];
+
             debugPrint(
-              'REAL SPEED '
-              'frame=${previousBall.frameIndex}->${trackedBall.frameIndex} '
-              'middleY=${realSpeed.middleY.toStringAsFixed(1)} '
-              'scale=${realSpeed.pixelsPerMillimeter.toStringAsFixed(4)}px/mm '
-              'speed=${realSpeed.speedMillimetersPerSecond.toStringAsFixed(1)}mm/s '
-              'speed=${realSpeed.speedMetersPerSecond.toStringAsFixed(3)}m/s',
+              'PEAK CONTEXT '
+              'frame=${item.previous.frameIndex}->${item.current.frameIndex} '
+              'time=${item.current.timestamp.inMilliseconds}ms '
+              'distance=${item.metrics.distancePixels.toStringAsFixed(2)}px '
+              'speed=${item.metrics.speedPixelsPerSecond.toStringAsFixed(2)}px/s'
+              '${i == peakIndex ? ' <-- PEAK' : ''}',
             );
           }
         }
       }
 
-      if (smoothedMetrics != null) {
+      if (smoothedPeak != null) {
         debugPrint(
-          'AutoTrackingSmoothed '
-          'dt=${smoothedMetrics.deltaTimeSeconds.toStringAsFixed(4)}s '
-          'distance=${smoothedMetrics.distancePixels.toStringAsFixed(2)}px '
-          'speed=${smoothedMetrics.speedPixelsPerSecond.toStringAsFixed(2)}px/s',
+          'SMOOTHED PEAK SPEED '
+          'startFrame=${smoothedPeak.previous.frameIndex} '
+          'frame=${smoothedPeak.current.frameIndex} '
+          'time=${smoothedPeak.current.timestamp.inMilliseconds}ms '
+          'speed=${smoothedPeak.metrics.speedPixelsPerSecond.toStringAsFixed(2)}px/s '
+          'distance=${smoothedPeak.metrics.distancePixels.toStringAsFixed(2)}px '
+          'dt=${smoothedPeak.metrics.deltaTimeSeconds.toStringAsFixed(4)}s',
         );
       }
-    }
 
-    debugPrint(
-      'AutoTracking finished '
-      'frames=$_frameAnalysisCount '
-      'tracked=${_trackingSession.length}',
-    );
-
-    final peak = _trackingSession.peakMetrics();
-    final smoothedPeak = _trackingSession.smoothedPeakMetrics();
-
-    RealSpeedResult? smoothedRealSpeed;
-
-    if (calibration != null && smoothedPeak != null) {
-      smoothedRealSpeed = RealSpeedCalculator.calculate(
-        calibration: calibration,
-        previous: smoothedPeak.previous,
-        current: smoothedPeak.current,
-        metrics: smoothedPeak.metrics,
-      );
-    }
-
-    if (peak != null) {
-      debugPrint(
-        'RAW PEAK SPEED '
-        'previousFrame=${peak.previous.frameIndex} '
-        'frame=${peak.current.frameIndex} '
-        'time=${peak.current.timestamp.inMilliseconds}ms '
-        'speed=${peak.metrics.speedPixelsPerSecond.toStringAsFixed(2)}px/s '
-        'distance=${peak.metrics.distancePixels.toStringAsFixed(2)}px '
-        'dt=${peak.metrics.deltaTimeSeconds.toStringAsFixed(4)}s',
-      );
-
-      final continuousMetrics = _trackingSession.continuousMetrics();
-      final peakIndex = continuousMetrics.indexWhere(
-        (item) =>
-            item.previous.frameIndex == peak.previous.frameIndex &&
-            item.current.frameIndex == peak.current.frameIndex,
-      );
-
-      if (peakIndex >= 0) {
-        debugPrint('===== PEAK CONTEXT =====');
-
-        final start = peakIndex - 3 < 0 ? 0 : peakIndex - 3;
-        final end = peakIndex + 3 >= continuousMetrics.length
-            ? continuousMetrics.length - 1
-            : peakIndex + 3;
-
-        for (var i = start; i <= end; i++) {
-          final item = continuousMetrics[i];
-
-          debugPrint(
-            'PEAK CONTEXT '
-            'frame=${item.previous.frameIndex}->${item.current.frameIndex} '
-            'time=${item.current.timestamp.inMilliseconds}ms '
-            'distance=${item.metrics.distancePixels.toStringAsFixed(2)}px '
-            'speed=${item.metrics.speedPixelsPerSecond.toStringAsFixed(2)}px/s'
-            '${i == peakIndex ? ' <-- PEAK' : ''}',
-          );
-        }
+      if (mounted) {
+        setState(() {
+          if (smoothedRealSpeed != null) {
+            _analysisResultMessage =
+                '解析完了: ${_trackingSession.length}フレーム追跡 / '
+                '実速度 ${smoothedRealSpeed.speedMetersPerSecond.toStringAsFixed(3)} m/s '
+                '(平滑化)';
+          } else if (smoothedPeak != null) {
+            _analysisResultMessage =
+                '解析完了: ${_trackingSession.length}フレーム追跡 / '
+                '最大速度 ${smoothedPeak.metrics.speedPixelsPerSecond.toStringAsFixed(1)} px/s '
+                '(平滑化)';
+          } else if (peak != null) {
+            _analysisResultMessage =
+                '解析完了: ${_trackingSession.length}フレーム追跡 / '
+                '最大速度 ${peak.metrics.speedPixelsPerSecond.toStringAsFixed(1)} px/s '
+                '(Raw)';
+          } else {
+            _analysisResultMessage = '解析完了: ${_trackingSession.length}フレーム追跡';
+          }
+        });
       }
-    }
-
-    if (smoothedPeak != null) {
-      debugPrint(
-        'SMOOTHED PEAK SPEED '
-        'startFrame=${smoothedPeak.previous.frameIndex} '
-        'frame=${smoothedPeak.current.frameIndex} '
-        'time=${smoothedPeak.current.timestamp.inMilliseconds}ms '
-        'speed=${smoothedPeak.metrics.speedPixelsPerSecond.toStringAsFixed(2)}px/s '
-        'distance=${smoothedPeak.metrics.distancePixels.toStringAsFixed(2)}px '
-        'dt=${smoothedPeak.metrics.deltaTimeSeconds.toStringAsFixed(4)}s',
-      );
-    }
-
-    if (mounted) {
-      setState(() {
-        if (smoothedRealSpeed != null) {
-          _analysisResultMessage =
-              '解析完了: ${_trackingSession.length}フレーム追跡 / '
-              '実速度 ${smoothedRealSpeed.speedMetersPerSecond.toStringAsFixed(3)} m/s '
-              '(平滑化)';
-        } else if (smoothedPeak != null) {
-          _analysisResultMessage =
-              '解析完了: ${_trackingSession.length}フレーム追跡 / '
-              '最大速度 ${smoothedPeak.metrics.speedPixelsPerSecond.toStringAsFixed(1)} px/s '
-              '(平滑化)';
-        } else if (peak != null) {
-          _analysisResultMessage =
-              '解析完了: ${_trackingSession.length}フレーム追跡 / '
-              '最大速度 ${peak.metrics.speedPixelsPerSecond.toStringAsFixed(1)} px/s '
-              '(Raw)';
-        } else {
-          _analysisResultMessage = '解析完了: ${_trackingSession.length}フレーム追跡';
-        }
-      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isAnalyzingVideo = false;
+        });
+      } else {
+        _isAnalyzingVideo = false;
+      }
     }
   }
 
@@ -708,6 +732,7 @@ class _CameraScreenState extends State<CameraScreen>
               onAnalyzeVideo: () {
                 _analyzeRecordedVideoFrames();
               },
+              isAnalyzingVideo: _isAnalyzingVideo,
             ),
           ),
         ],

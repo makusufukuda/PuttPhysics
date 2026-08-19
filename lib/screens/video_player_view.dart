@@ -16,6 +16,7 @@ class VideoPlayerView extends StatelessWidget {
     required this.onNextFrame,
     required this.onCaptureFrame,
     required this.onAnalyzeVideo,
+    required this.isAnalyzingVideo,
   });
 
   final CameraController? cameraController;
@@ -27,6 +28,7 @@ class VideoPlayerView extends StatelessWidget {
   final VoidCallback onNextFrame;
   final VoidCallback onCaptureFrame;
   final VoidCallback onAnalyzeVideo;
+  final bool isAnalyzingVideo;
 
   @override
   Widget build(BuildContext context) {
@@ -79,6 +81,7 @@ class VideoPlayerView extends StatelessWidget {
                   onNextFrame: onNextFrame,
                   onCaptureFrame: onCaptureFrame,
                   onAnalyzeVideo: onAnalyzeVideo,
+                  isAnalyzingVideo: isAnalyzingVideo,
                 ),
               ],
             ),

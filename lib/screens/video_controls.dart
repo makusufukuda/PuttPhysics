@@ -10,6 +10,7 @@ class VideoControls extends StatelessWidget {
     this.onNextFrame,
     this.onCaptureFrame,
     this.onAnalyzeVideo,
+    required this.isAnalyzingVideo,
   });
 
   final VideoPlayerController controller;
@@ -18,6 +19,7 @@ class VideoControls extends StatelessWidget {
   final VoidCallback? onNextFrame;
   final VoidCallback? onCaptureFrame;
   final VoidCallback? onAnalyzeVideo;
+  final bool isAnalyzingVideo;
 
   String _formatDuration(Duration duration) {
     final minutes = duration.inMinutes.remainder(60).toString().padLeft(2, '0');
@@ -85,9 +87,15 @@ class VideoControls extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           FilledButton.icon(
-            onPressed: onAnalyzeVideo,
-            icon: const Icon(Icons.analytics),
-            label: const Text('動画解析'),
+            onPressed: isAnalyzingVideo ? null : onAnalyzeVideo,
+            icon: isAnalyzingVideo
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.analytics),
+            label: Text(isAnalyzingVideo ? '解析中…' : '動画解析'),
           ),
         ],
       ),
