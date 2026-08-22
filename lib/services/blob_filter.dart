@@ -22,7 +22,7 @@ class BlobFilter {
   static const int maximumMotionBlurHeight = 50;
   static const int minimumMotionBlurWidth = 40;
   static const int maximumMotionBlurWidth = 160;
-  static const double minimumMotionBlurAspectRatio = 1.55;
+  static const double minimumMotionBlurAspectRatio = 1.30;
   static const double maximumMotionBlurAspectRatio = 7.00;
   static const double minimumMotionBlurFillRatio = 0.30;
 
