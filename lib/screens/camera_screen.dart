@@ -95,6 +95,83 @@ class _CameraScreenState extends State<CameraScreen>
     _testNativeFrameChannel();
   }
 
+  Future<void> _readNativeFrameImage(
+    String videoPath, {
+    required int frameIndex,
+  }) async {
+    try {
+      debugPrint(
+        'NATIVE FRAME IMAGE START '
+        'frameIndex=$frameIndex '
+        'videoPath=$videoPath',
+      );
+
+      final result = await _nativeFrameChannel.invokeMapMethod<String, Object?>(
+        'readFrameImage',
+        <String, Object?>{'videoPath': videoPath, 'frameIndex': frameIndex},
+      );
+
+      if (result == null) {
+        debugPrint('NATIVE FRAME IMAGE ERROR result=null');
+        return;
+      }
+
+      final imageBytes = result['imageBytes'];
+
+      final byteLength = imageBytes is Uint8List ? imageBytes.length : -1;
+
+      debugPrint(
+        'NATIVE FRAME IMAGE '
+        'frameIndex=${result['frameIndex']} '
+        'ptsMs=${result['ptsMs']} '
+        'width=${result['width']} '
+        'height=${result['height']} '
+        'jpegBytes=$byteLength',
+      );
+
+      if (imageBytes is! Uint8List) {
+        debugPrint(
+          'NATIVE FRAME INSPECT ERROR '
+          'imageBytes is not Uint8List',
+        );
+        return;
+      }
+
+      final imageInfo = ImageInspector.inspect(
+        imageBytes,
+        debugFrameIndex: frameIndex,
+      );
+
+      if (imageInfo == null) {
+        debugPrint(
+          'NATIVE FRAME INSPECT ERROR '
+          'frameIndex=$frameIndex '
+          'ImageInspector returned null',
+        );
+        return;
+      }
+
+      debugPrint(
+        'NATIVE FRAME INSPECT '
+        'frameIndex=$frameIndex '
+        'width=${imageInfo.width} '
+        'height=${imageInfo.height} '
+        'blobCount=${imageInfo.blobCount} '
+        'ballCandidateCount=${imageInfo.ballCandidateCount} '
+        'bestBallCandidate=${imageInfo.bestBallCandidate}',
+      );
+    } on PlatformException catch (error) {
+      debugPrint(
+        'NATIVE FRAME IMAGE ERROR '
+        'code=${error.code} '
+        'message=${error.message} '
+        'details=${error.details}',
+      );
+    } catch (error) {
+      debugPrint('NATIVE FRAME IMAGE ERROR $error');
+    }
+  }
+
   Future<void> _readNativeFrameMetadata(String videoPath) async {
     try {
       debugPrint(
@@ -223,6 +300,8 @@ class _CameraScreenState extends State<CameraScreen>
       _recordedVideoPath = videoFile.path;
 
       await _readNativeFrameMetadata(videoFile.path);
+
+      await _readNativeFrameImage(videoFile.path, frameIndex: 30);
 
       await _initializeVideoPlayer(videoFile);
 
