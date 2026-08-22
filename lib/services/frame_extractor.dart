@@ -1,5 +1,4 @@
-import 'dart:typed_data';
-
+import 'package:flutter/services.dart';
 import 'package:video_thumbnail/video_thumbnail.dart';
 
 class ExtractedVideoFrame {
@@ -11,6 +10,10 @@ class ExtractedVideoFrame {
 
 class FrameExtractor {
   const FrameExtractor._();
+
+  static const MethodChannel _nativeFrameChannel = MethodChannel(
+    'com.chainaflower.puttphysics/frame_extractor',
+  );
 
   static Future<Uint8List?> extractFrame({
     required String videoPath,
@@ -34,39 +37,53 @@ class FrameExtractor {
     int maxWidth = 1280,
     int quality = 95,
   }) async* {
-    if (framesPerSecond <= 0) {
-      throw ArgumentError.value(
-        framesPerSecond,
-        'framesPerSecond',
-        'must be greater than zero',
-      );
-    }
+    var readerOpened = false;
 
-    var frameIndex = 0;
+    try {
+      final openResult = await _nativeFrameChannel
+          .invokeMapMethod<String, Object?>(
+            'openFrameReader',
+            <String, Object?>{'videoPath': videoPath, 'quality': quality},
+          );
 
-    while (true) {
-      final positionMicroseconds =
-          (frameIndex * Duration.microsecondsPerSecond / framesPerSecond)
-              .round();
-
-      final position = Duration(microseconds: positionMicroseconds);
-
-      if (position > duration) {
-        break;
+      if (openResult == null || openResult['ok'] != true) {
+        throw StateError('Native frame reader failed to open.');
       }
 
-      final imageBytes = await extractFrame(
-        videoPath: videoPath,
-        position: position,
-        maxWidth: maxWidth,
-        quality: quality,
-      );
+      readerOpened = true;
 
-      if (imageBytes != null && imageBytes.isNotEmpty) {
-        yield ExtractedVideoFrame(position: position, imageBytes: imageBytes);
+      while (true) {
+        final result = await _nativeFrameChannel
+            .invokeMapMethod<String, Object?>('readNextFrame');
+
+        if (result == null) {
+          throw StateError('Native frame reader returned null.');
+        }
+
+        if (result['done'] == true) {
+          break;
+        }
+
+        final ptsUs = result['ptsUs'];
+        final imageBytes = result['imageBytes'];
+
+        if (ptsUs is! int || imageBytes is! Uint8List) {
+          throw StateError('Native frame reader returned invalid frame data.');
+        }
+
+        yield ExtractedVideoFrame(
+          position: Duration(microseconds: ptsUs),
+          imageBytes: imageBytes,
+        );
       }
-
-      frameIndex++;
+    } finally {
+      if (readerOpened) {
+        try {
+          await _nativeFrameChannel.invokeMethod<Object?>('closeFrameReader');
+        } on PlatformException {
+          // Preserve the original extraction error, if any.
+        }
+      }
     }
   }
 }
