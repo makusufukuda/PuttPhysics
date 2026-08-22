@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show MethodChannel, PlatformException;
 import 'package:video_player/video_player.dart';
 
 import '../services/frame_extractor.dart';
@@ -25,6 +26,26 @@ class CameraScreen extends StatefulWidget {
 
 class _CameraScreenState extends State<CameraScreen>
     with WidgetsBindingObserver {
+  static const MethodChannel _nativeFrameChannel = MethodChannel(
+    'com.chainaflower.puttphysics/frame_extractor',
+  );
+
+  Future<void> _testNativeFrameChannel() async {
+    try {
+      final result = await _nativeFrameChannel.invokeMethod<Object?>('ping');
+
+      debugPrint('NATIVE FRAME CHANNEL PING result=$result');
+    } on PlatformException catch (error) {
+      debugPrint(
+        'NATIVE FRAME CHANNEL PING ERROR '
+        'code=${error.code} '
+        'message=${error.message}',
+      );
+    } catch (error) {
+      debugPrint('NATIVE FRAME CHANNEL PING ERROR $error');
+    }
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) async {
     final controller = _cameraController;
@@ -71,6 +92,54 @@ class _CameraScreenState extends State<CameraScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _initializeCamera();
+    _testNativeFrameChannel();
+  }
+
+  Future<void> _readNativeFrameMetadata(String videoPath) async {
+    try {
+      debugPrint(
+        'NATIVE FRAME METADATA START '
+        'videoPath=$videoPath',
+      );
+
+      final result = await _nativeFrameChannel.invokeMapMethod<String, Object?>(
+        'readFrameMetadata',
+        <String, Object?>{'videoPath': videoPath},
+      );
+
+      if (result == null) {
+        debugPrint('NATIVE FRAME METADATA ERROR result=null');
+        return;
+      }
+
+      debugPrint(
+        'NATIVE FRAME METADATA '
+        'frameCount=${result['frameCount']} '
+        'firstPtsMs=${result['firstPtsMs']} '
+        'lastPtsMs=${result['lastPtsMs']} '
+        'minimumStepMs=${result['minimumStepMs']} '
+        'maximumStepMs=${result['maximumStepMs']} '
+        'duplicateCount=${result['duplicateCount']} '
+        'nonIncreasingCount=${result['nonIncreasingCount']} '
+        'readerStatus=${result['readerStatus']}',
+      );
+
+      final sampleFrames = result['sampleFrames'];
+
+      debugPrint(
+        'NATIVE FRAME METADATA SAMPLE '
+        '$sampleFrames',
+      );
+    } on PlatformException catch (error) {
+      debugPrint(
+        'NATIVE FRAME METADATA ERROR '
+        'code=${error.code} '
+        'message=${error.message} '
+        'details=${error.details}',
+      );
+    } catch (error) {
+      debugPrint('NATIVE FRAME METADATA ERROR $error');
+    }
   }
 
   Future<void> _initializeCamera() async {
@@ -149,7 +218,11 @@ class _CameraScreenState extends State<CameraScreen>
     try {
       final videoFile = await controller.stopVideoRecording();
 
+      debugPrint('RECORDED VIDEO path=${videoFile.path}');
+
       _recordedVideoPath = videoFile.path;
+
+      await _readNativeFrameMetadata(videoFile.path);
 
       await _initializeVideoPlayer(videoFile);
 
@@ -446,7 +519,10 @@ class _CameraScreenState extends State<CameraScreen>
         videoPath: videoPath,
         duration: duration,
       )) {
-        final imageInfo = ImageInspector.inspect(frame.imageBytes);
+        final imageInfo = ImageInspector.inspect(
+          frame.imageBytes,
+          debugFrameIndex: _frameAnalysisCount + 1,
+        );
 
         if (imageInfo == null) {
           continue;

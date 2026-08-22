@@ -111,14 +111,26 @@ class BallTracker {
     }
   }
 
-  BallCandidate _selectInitialCandidate(List<BallCandidate> candidates) {
+  BallCandidate? _selectInitialCandidate(List<BallCandidate> candidates) {
     for (final candidate in candidates) {
-      if (candidate.isCombinedRedYellow) {
+      if (candidate.isCombinedRedYellow && !candidate.isMotionBlur) {
         return candidate;
       }
     }
 
-    return candidates.first;
+    for (final candidate in candidates) {
+      if (!candidate.isMotionBlur) {
+        return candidate;
+      }
+    }
+
+    debugPrint(
+      'TRACKER INITIAL REJECT '
+      'reason=motionBlurOnly '
+      'candidateCount=${candidates.length}',
+    );
+
+    return null;
   }
 
   double _predictionScore(

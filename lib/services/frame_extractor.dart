@@ -30,13 +30,31 @@ class FrameExtractor {
   static Stream<ExtractedVideoFrame> extractFrames({
     required String videoPath,
     required Duration duration,
-    Duration interval = const Duration(milliseconds: 50),
+    double framesPerSecond = 30.0,
     int maxWidth = 1280,
     int quality = 95,
   }) async* {
-    var position = Duration.zero;
+    if (framesPerSecond <= 0) {
+      throw ArgumentError.value(
+        framesPerSecond,
+        'framesPerSecond',
+        'must be greater than zero',
+      );
+    }
 
-    while (position <= duration) {
+    var frameIndex = 0;
+
+    while (true) {
+      final positionMicroseconds =
+          (frameIndex * Duration.microsecondsPerSecond / framesPerSecond)
+              .round();
+
+      final position = Duration(microseconds: positionMicroseconds);
+
+      if (position > duration) {
+        break;
+      }
+
       final imageBytes = await extractFrame(
         videoPath: videoPath,
         position: position,
@@ -48,7 +66,7 @@ class FrameExtractor {
         yield ExtractedVideoFrame(position: position, imageBytes: imageBytes);
       }
 
-      position += interval;
+      frameIndex++;
     }
   }
 }

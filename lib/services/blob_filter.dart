@@ -1,5 +1,7 @@
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
+
 import '../models/ball_candidate.dart';
 import '../models/blob.dart';
 
@@ -17,18 +19,21 @@ class BlobFilter {
   // A fast-moving ball can become horizontally elongated because of
   // motion blur. Keep this separate from the normal round-ball limits.
   static const int minimumMotionBlurHeight = 12;
-  static const int maximumMotionBlurHeight = 40;
+  static const int maximumMotionBlurHeight = 50;
   static const int minimumMotionBlurWidth = 40;
   static const int maximumMotionBlurWidth = 160;
-  static const double minimumMotionBlurAspectRatio = 1.60;
+  static const double minimumMotionBlurAspectRatio = 1.55;
   static const double maximumMotionBlurAspectRatio = 7.00;
-  static const double minimumMotionBlurFillRatio = 0.35;
+  static const double minimumMotionBlurFillRatio = 0.30;
 
-  static List<BallCandidate> filter(List<Blob> blobs) {
+  static List<BallCandidate> filter(List<Blob> blobs, {int? debugFrameIndex}) {
     final candidates = <BallCandidate>[];
 
     for (final blob in blobs) {
-      final candidate = _createBallCandidate(blob);
+      final candidate = _createBallCandidate(
+        blob,
+        debugFrameIndex: debugFrameIndex,
+      );
 
       if (candidate != null) {
         candidates.add(candidate);
@@ -40,7 +45,38 @@ class BlobFilter {
     return candidates;
   }
 
-  static BallCandidate? _createBallCandidate(Blob blob) {
+  static BallCandidate? _createBallCandidate(
+    Blob blob, {
+    int? debugFrameIndex,
+  }) {
+    final shouldDebug =
+        debugFrameIndex != null &&
+        debugFrameIndex >= 127 &&
+        debugFrameIndex <= 132 &&
+        blob.pixelCount >= minimumPixelCount &&
+        blob.centroidY >= 850;
+
+    void debugReject(String reason) {
+      if (!shouldDebug) {
+        return;
+      }
+
+      final aspectRatio = blob.width / blob.height;
+
+      debugPrint(
+        'BLOB DEBUG '
+        'frame=$debugFrameIndex '
+        'reason=$reason '
+        'x=${blob.centroidX.toStringAsFixed(1)} '
+        'y=${blob.centroidY.toStringAsFixed(1)} '
+        'pixels=${blob.pixelCount} '
+        'width=${blob.width} '
+        'height=${blob.height} '
+        'aspect=${aspectRatio.toStringAsFixed(3)} '
+        'fill=${blob.fillRatio.toStringAsFixed(3)}',
+      );
+    }
+
     if (blob.pixelCount < minimumPixelCount) {
       return null;
     }
@@ -55,10 +91,12 @@ class BlobFilter {
         blob.height <= maximumMotionBlurHeight;
 
     if (!hasNormalSize && !hasMotionBlurSize) {
+      debugReject('size');
       return null;
     }
 
     if (blob.width > maximumDiameter || blob.height > maximumDiameter) {
+      debugReject('maximumDiameter');
       return null;
     }
 
@@ -74,12 +112,29 @@ class BlobFilter {
         blob.width <= maximumMotionBlurWidth &&
         blob.height >= minimumMotionBlurHeight &&
         blob.height <= maximumMotionBlurHeight &&
-        aspectRatio > minimumMotionBlurAspectRatio &&
+        aspectRatio >= minimumMotionBlurAspectRatio &&
         aspectRatio <= maximumMotionBlurAspectRatio &&
         blob.fillRatio >= minimumMotionBlurFillRatio;
 
     if (!isNormalBall && !isMotionBlur) {
+      debugReject('shape');
       return null;
+    }
+
+    if (shouldDebug) {
+      debugPrint(
+        'BLOB DEBUG '
+        'frame=$debugFrameIndex '
+        'reason=PASS '
+        'x=${blob.centroidX.toStringAsFixed(1)} '
+        'y=${blob.centroidY.toStringAsFixed(1)} '
+        'pixels=${blob.pixelCount} '
+        'width=${blob.width} '
+        'height=${blob.height} '
+        'aspect=${aspectRatio.toStringAsFixed(3)} '
+        'fill=${blob.fillRatio.toStringAsFixed(3)} '
+        'motionBlur=$isMotionBlur',
+      );
     }
 
     final estimatedRadius = isMotionBlur

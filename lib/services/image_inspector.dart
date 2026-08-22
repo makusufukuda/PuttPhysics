@@ -74,7 +74,10 @@ class ImageInspector {
 
   static const int _minimumBlobPixelCount = 10;
 
-  static ImageInfoResult? inspect(Uint8List imageBytes) {
+  static ImageInfoResult? inspect(
+    Uint8List imageBytes, {
+    int? debugFrameIndex,
+  }) {
     final image = img.decodeImage(imageBytes);
 
     if (image == null) {
@@ -123,7 +126,10 @@ class ImageInspector {
       }
     }
 
-    final ballCandidates = BlobFilter.filter(blobs);
+    final ballCandidates = BlobFilter.filter(
+      blobs,
+      debugFrameIndex: debugFrameIndex,
+    );
 
     final combinedCandidate = _createCombinedRedYellowCandidate(
       redBlob: largestRedBlob,
