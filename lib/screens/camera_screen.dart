@@ -160,6 +160,27 @@ class _CameraScreenState extends State<CameraScreen>
         'ballCandidateCount=${imageInfo.ballCandidateCount} '
         'bestBallCandidate=${imageInfo.bestBallCandidate}',
       );
+
+      final markers = MarkerDetector.detect(imageBytes);
+
+      debugPrint(
+        'NATIVE FRAME MARKER DETECTION '
+        'frameIndex=$frameIndex '
+        'count=${markers.length}',
+      );
+
+      for (final marker in markers) {
+        debugPrint(
+          'NATIVE FRAME MARKER '
+          'frameIndex=$frameIndex '
+          'position=${marker.position.name} '
+          'x=${marker.centerX.toStringAsFixed(1)} '
+          'y=${marker.centerY.toStringAsFixed(1)} '
+          'width=${marker.width} '
+          'height=${marker.height} '
+          'pixels=${marker.pixelCount}',
+        );
+      }
     } on PlatformException catch (error) {
       debugPrint(
         'NATIVE FRAME IMAGE ERROR '
@@ -301,7 +322,7 @@ class _CameraScreenState extends State<CameraScreen>
 
       await _readNativeFrameMetadata(videoFile.path);
 
-      await _readNativeFrameImage(videoFile.path, frameIndex: 30);
+      await _readNativeFrameImage(videoFile.path, frameIndex: 0);
 
       await _initializeVideoPlayer(videoFile);
 

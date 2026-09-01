@@ -164,13 +164,13 @@ class MarkerDetector {
       return false;
     }
 
-    if (width > 60 || height > 60) {
+    if (width > 130 || height > 130) {
       return false;
     }
 
     final aspectRatio = width / height;
 
-    if (aspectRatio < 0.70 || aspectRatio > 1.40) {
+    if (aspectRatio < 0.60 || aspectRatio > 1.40) {
       return false;
     }
 
