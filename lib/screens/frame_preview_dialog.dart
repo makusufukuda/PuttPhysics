@@ -16,6 +16,22 @@ class BallCandidateViewData {
   final double confidence;
 }
 
+class MarkerViewData {
+  const MarkerViewData({
+    required this.centerX,
+    required this.centerY,
+    required this.width,
+    required this.height,
+    required this.position,
+  });
+
+  final double centerX;
+  final double centerY;
+  final int width;
+  final int height;
+  final String position;
+}
+
 class FramePreviewDialog extends StatelessWidget {
   const FramePreviewDialog({
     super.key,
@@ -53,6 +69,7 @@ class FramePreviewDialog extends StatelessWidget {
     required this.bestCandidateRadius,
     required this.bestCandidateConfidence,
     required this.ballCandidates,
+    required this.markers,
   });
 
   final Uint8List imageBytes;
@@ -98,6 +115,7 @@ class FramePreviewDialog extends StatelessWidget {
   final double? bestCandidateRadius;
   final double? bestCandidateConfidence;
   final List<BallCandidateViewData> ballCandidates;
+  final List<MarkerViewData> markers;
 
   String _formatPosition(Duration value) {
     final minutes = value.inMinutes.remainder(60).toString().padLeft(2, '0');
@@ -274,6 +292,14 @@ class FramePreviewDialog extends StatelessWidget {
                             centerY: bestCandidateCenterY!,
                             radius: bestCandidateRadius!,
                             confidence: bestCandidateConfidence!,
+                          ),
+                        ),
+                      if (markers.isNotEmpty)
+                        CustomPaint(
+                          painter: _MarkerOverlayPainter(
+                            sourceWidth: imageWidth,
+                            sourceHeight: imageHeight,
+                            markers: markers,
                           ),
                         ),
                     ],
@@ -512,5 +538,91 @@ class _AllBallCandidatePainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _AllBallCandidatePainter oldDelegate) {
     return ballCandidates != oldDelegate.ballCandidates;
+  }
+}
+
+class _MarkerOverlayPainter extends CustomPainter {
+  const _MarkerOverlayPainter({
+    required this.sourceWidth,
+    required this.sourceHeight,
+    required this.markers,
+  });
+
+  final int sourceWidth;
+  final int sourceHeight;
+  final List<MarkerViewData> markers;
+
+  String _labelForPosition(String position) {
+    switch (position) {
+      case 'topLeft':
+        return 'TL';
+      case 'topRight':
+        return 'TR';
+      case 'bottomLeft':
+        return 'BL';
+      case 'bottomRight':
+        return 'BR';
+      default:
+        return position;
+    }
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final scaleX = size.width / sourceWidth;
+    final scaleY = size.height / sourceHeight;
+
+    final rectanglePaint = Paint()
+      ..color = Colors.purple
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3;
+
+    final centerPaint = Paint()
+      ..color = Colors.purple
+      ..style = PaintingStyle.fill;
+
+    for (final marker in markers) {
+      final left = (marker.centerX - marker.width / 2) * scaleX;
+      final top = (marker.centerY - marker.height / 2) * scaleY;
+
+      final rect = Rect.fromLTWH(
+        left,
+        top,
+        marker.width * scaleX,
+        marker.height * scaleY,
+      );
+
+      canvas.drawRect(rect, rectanglePaint);
+
+      final center = Offset(marker.centerX * scaleX, marker.centerY * scaleY);
+
+      canvas.drawCircle(center, 4, centerPaint);
+
+      final textPainter = TextPainter(
+        text: TextSpan(
+          text: _labelForPosition(marker.position),
+          style: const TextStyle(
+            color: Colors.purple,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      );
+
+      textPainter.layout();
+
+      textPainter.paint(
+        canvas,
+        Offset(rect.left, rect.top - textPainter.height - 2),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _MarkerOverlayPainter oldDelegate) {
+    return sourceWidth != oldDelegate.sourceWidth ||
+        sourceHeight != oldDelegate.sourceHeight ||
+        markers != oldDelegate.markers;
   }
 }

@@ -450,6 +450,7 @@ class _CameraScreenState extends State<CameraScreen>
       }
 
       final imageInfo = ImageInspector.inspect(imageBytes);
+      final markers = MarkerDetector.detect(imageBytes);
 
       if (imageInfo == null) {
         _showMessage('フレーム画像を読み込めませんでした。');
@@ -539,6 +540,17 @@ class _CameraScreenState extends State<CameraScreen>
             bestCandidateCenterY: bestBallCandidate?.centerY,
             bestCandidateRadius: bestBallCandidate?.radius,
             bestCandidateConfidence: bestBallCandidate?.confidence,
+            markers: markers
+                .map(
+                  (marker) => MarkerViewData(
+                    centerX: marker.centerX,
+                    centerY: marker.centerY,
+                    width: marker.width,
+                    height: marker.height,
+                    position: marker.position.name,
+                  ),
+                )
+                .toList(),
           );
         },
       );
