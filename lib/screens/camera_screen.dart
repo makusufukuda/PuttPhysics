@@ -11,6 +11,7 @@ import '../services/image_inspector.dart';
 import '../models/tracking_session.dart';
 import '../models/marker_calibration_result.dart';
 import '../services/ball_tracker.dart';
+import '../services/blue_marker_diagnostic.dart';
 import '../services/marker_detector.dart';
 import '../services/marker_calibration.dart';
 import '../services/real_speed_calculator.dart';
@@ -160,6 +161,8 @@ class _CameraScreenState extends State<CameraScreen>
         'ballCandidateCount=${imageInfo.ballCandidateCount} '
         'bestBallCandidate=${imageInfo.bestBallCandidate}',
       );
+
+      BlueMarkerDiagnostic.inspect(imageBytes, frameIndex: frameIndex);
 
       final markers = MarkerDetector.detect(imageBytes);
 
