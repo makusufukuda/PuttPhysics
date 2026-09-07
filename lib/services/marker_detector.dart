@@ -4,6 +4,7 @@ import 'package:image/image.dart' as img;
 import '../models/blob.dart';
 import '../models/marker_candidate.dart';
 import 'blob_analyzer.dart';
+import 'color_detector.dart';
 import 'color_mask.dart';
 
 class MarkerDetector {
@@ -16,7 +17,7 @@ class MarkerDetector {
       return const [];
     }
 
-    final darkMask = ColorMask(width: image.width, height: image.height);
+    final blueMask = ColorMask(width: image.width, height: image.height);
 
     for (var y = 0; y < image.height; y++) {
       for (var x = 0; x < image.width; x++) {
@@ -26,19 +27,25 @@ class MarkerDetector {
         final green = pixel.g.toInt();
         final blue = pixel.b.toInt();
 
-        final brightness = (red + green + blue) / 3.0;
+        final hsv = ColorDetector.rgbToHsv(red: red, green: green, blue: blue);
 
-        darkMask.setPixel(x, y, brightness <= 80);
+        final isBlue =
+            hsv.hue >= 205 &&
+            hsv.hue <= 255 &&
+            hsv.saturation >= 0.20 &&
+            hsv.value >= 0.15;
+
+        blueMask.setPixel(x, y, isBlue);
       }
     }
 
-    final blobs = BlobAnalyzer.extractBlobs(darkMask, minimumPixelCount: 100);
+    final blobs = BlobAnalyzer.extractBlobs(blueMask, minimumPixelCount: 100);
 
     final markerBlobs = blobs.where(_looksLikeMarker).toList();
 
     debugPrint(
       'MARKER DEBUG image=${image.width}x${image.height} '
-      'darkBlobs=${blobs.length} markerBlobs=${markerBlobs.length}',
+      'blueBlobs=${blobs.length} markerBlobs=${markerBlobs.length}',
     );
 
     for (final blob in blobs) {
@@ -170,7 +177,7 @@ class MarkerDetector {
 
     final aspectRatio = width / height;
 
-    if (aspectRatio < 0.60 || aspectRatio > 1.40) {
+    if (aspectRatio < 0.60 || aspectRatio > 2.20) {
       return false;
     }
 
