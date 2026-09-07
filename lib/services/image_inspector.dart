@@ -1,5 +1,4 @@
-import 'dart:typed_data';
-
+import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as img;
 
 import '../models/ball_candidate.dart';
@@ -130,6 +129,51 @@ class ImageInspector {
       blobs,
       debugFrameIndex: debugFrameIndex,
     );
+
+    if (debugFrameIndex != null && debugFrameIndex <= 20) {
+      for (var i = 0; i < ballCandidates.length; i++) {
+        final candidate = ballCandidates[i];
+
+        final nearbyRed = redBlobs.where((blob) {
+          final dx = blob.centroidX - candidate.centerX;
+          final dy = blob.centroidY - candidate.centerY;
+          final distance = (dx * dx + dy * dy);
+          final limit = candidate.radius * 3.0;
+          return distance <= limit * limit;
+        }).toList();
+
+        final nearbyYellow = yellowBlobs.where((blob) {
+          final dx = blob.centroidX - candidate.centerX;
+          final dy = blob.centroidY - candidate.centerY;
+          final distance = (dx * dx + dy * dy);
+          final limit = candidate.radius * 3.0;
+          return distance <= limit * limit;
+        }).toList();
+
+        final nearbyRedPixels = nearbyRed.fold<int>(
+          0,
+          (sum, blob) => sum + blob.pixelCount,
+        );
+
+        final nearbyYellowPixels = nearbyYellow.fold<int>(
+          0,
+          (sum, blob) => sum + blob.pixelCount,
+        );
+
+        debugPrint(
+          'CANDIDATE COLOR '
+          'frame=$debugFrameIndex '
+          'index=$i '
+          'x=${candidate.centerX.toStringAsFixed(1)} '
+          'y=${candidate.centerY.toStringAsFixed(1)} '
+          'r=${candidate.radius.toStringAsFixed(1)} '
+          'redBlobs=${nearbyRed.length} '
+          'redPixels=$nearbyRedPixels '
+          'yellowBlobs=${nearbyYellow.length} '
+          'yellowPixels=$nearbyYellowPixels',
+        );
+      }
+    }
 
     final combinedCandidate = _createCombinedRedYellowCandidate(
       redBlob: largestRedBlob,

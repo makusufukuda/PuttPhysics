@@ -6,6 +6,16 @@ class MarkerCalibrationResult {
     required this.bottomScale,
     required this.topDistancePixels,
     required this.bottomDistancePixels,
+    required this.leftDistancePixels,
+    required this.rightDistancePixels,
+    required this.topLeftX,
+    required this.topLeftY,
+    required this.topRightX,
+    required this.topRightY,
+    required this.bottomLeftX,
+    required this.bottomLeftY,
+    required this.bottomRightX,
+    required this.bottomRightY,
     required this.topReferenceY,
     required this.bottomReferenceY,
   });
@@ -15,6 +25,17 @@ class MarkerCalibrationResult {
 
   final double topDistancePixels;
   final double bottomDistancePixels;
+  final double leftDistancePixels;
+  final double rightDistancePixels;
+
+  final double topLeftX;
+  final double topLeftY;
+  final double topRightX;
+  final double topRightY;
+  final double bottomLeftX;
+  final double bottomLeftY;
+  final double bottomRightX;
+  final double bottomRightY;
 
   final double topReferenceY;
   final double bottomReferenceY;

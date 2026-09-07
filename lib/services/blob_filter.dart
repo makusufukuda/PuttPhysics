@@ -148,6 +148,23 @@ class BlobFilter {
     final centerX = (blob.minX + blob.maxX) / 2.0;
     final centerY = (blob.minY + blob.maxY) / 2.0;
 
+    if (debugFrameIndex != null && debugFrameIndex <= 20) {
+      debugPrint(
+        'CANDIDATE BLOB '
+        'frame=$debugFrameIndex '
+        'x=${centerX.toStringAsFixed(1)} '
+        'y=${centerY.toStringAsFixed(1)} '
+        'pixels=${blob.pixelCount} '
+        'width=${blob.width} '
+        'height=${blob.height} '
+        'aspect=${aspectRatio.toStringAsFixed(3)} '
+        'fill=${blob.fillRatio.toStringAsFixed(3)} '
+        'radius=${estimatedRadius.toStringAsFixed(1)} '
+        'confidence=${confidence.toStringAsFixed(3)} '
+        'motionBlur=$isMotionBlur',
+      );
+    }
+
     return BallCandidate(
       centerX: centerX,
       centerY: centerY,

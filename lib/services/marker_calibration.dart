@@ -8,6 +8,7 @@ class MarkerCalibration {
   const MarkerCalibration._();
 
   static const double horizontalMarkerDistanceMillimeters = 700.0;
+  static const double verticalMarkerDistanceMillimeters = 237.0;
 
   static MarkerCalibrationResult? calculate(List<MarkerCandidate> markers) {
     if (markers.length != 4) {
@@ -38,8 +39,13 @@ class MarkerCalibration {
 
     final topDistancePixels = _distance(topLeft, topRight);
     final bottomDistancePixels = _distance(bottomLeft, bottomRight);
+    final leftDistancePixels = _distance(topLeft, bottomLeft);
+    final rightDistancePixels = _distance(topRight, bottomRight);
 
-    if (topDistancePixels <= 0 || bottomDistancePixels <= 0) {
+    if (topDistancePixels <= 0 ||
+        bottomDistancePixels <= 0 ||
+        leftDistancePixels <= 0 ||
+        rightDistancePixels <= 0) {
       return null;
     }
 
@@ -54,6 +60,16 @@ class MarkerCalibration {
       ),
       topDistancePixels: topDistancePixels,
       bottomDistancePixels: bottomDistancePixels,
+      leftDistancePixels: leftDistancePixels,
+      rightDistancePixels: rightDistancePixels,
+      topLeftX: topLeft.centerX,
+      topLeftY: topLeft.centerY,
+      topRightX: topRight.centerX,
+      topRightY: topRight.centerY,
+      bottomLeftX: bottomLeft.centerX,
+      bottomLeftY: bottomLeft.centerY,
+      bottomRightX: bottomRight.centerX,
+      bottomRightY: bottomRight.centerY,
       topReferenceY: (topLeft.centerY + topRight.centerY) / 2.0,
       bottomReferenceY: (bottomLeft.centerY + bottomRight.centerY) / 2.0,
     );

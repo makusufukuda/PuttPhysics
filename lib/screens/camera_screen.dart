@@ -437,22 +437,39 @@ class _CameraScreenState extends State<CameraScreen>
 
     final position = videoController.value.position;
 
+    final frameIndex =
+        (position.inMicroseconds * _videoFps / Duration.microsecondsPerSecond)
+            .round();
+
     try {
-      final Uint8List? imageBytes = await FrameExtractor.extractFrame(
+      final frame = await FrameExtractor.extractFrameByIndex(
         videoPath: videoPath,
-        position: position,
+        frameIndex: frameIndex,
       );
 
       if (!mounted) {
         return;
       }
 
-      if (imageBytes == null || imageBytes.isEmpty) {
+      if (frame == null || frame.imageBytes.isEmpty) {
         _showMessage('フレーム画像を取得できませんでした。');
         return;
       }
 
-      final imageInfo = ImageInspector.inspect(imageBytes);
+      final imageBytes = frame.imageBytes;
+      final actualPosition = frame.position;
+
+      debugPrint(
+        'CAPTURE NATIVE FRAME '
+        'requestedFrame=$frameIndex '
+        'playerMs=${position.inMilliseconds} '
+        'actualMs=${actualPosition.inMilliseconds}',
+      );
+
+      final imageInfo = ImageInspector.inspect(
+        imageBytes,
+        debugFrameIndex: frameIndex,
+      );
       final markers = MarkerDetector.detect(imageBytes);
 
       if (imageInfo == null) {
@@ -463,7 +480,7 @@ class _CameraScreenState extends State<CameraScreen>
 
       final trackedBall = _ballTracker.track(
         frameIndex: _frameAnalysisCount,
-        timestamp: position,
+        timestamp: actualPosition,
         candidates: imageInfo.ballCandidates,
       );
 
@@ -501,7 +518,7 @@ class _CameraScreenState extends State<CameraScreen>
         builder: (context) {
           return FramePreviewDialog(
             imageBytes: imageBytes,
-            position: position,
+            position: actualPosition,
             imageWidth: imageInfo.width,
             imageHeight: imageInfo.height,
             centerX: imageInfo.centerX,
@@ -675,6 +692,26 @@ class _CameraScreenState extends State<CameraScreen>
               'bottomScale=${calibration.bottomScale.pixelsPerMillimeter.toStringAsFixed(4)}px/mm',
             );
 
+            final leftVerticalScale =
+                calibration.leftDistancePixels /
+                MarkerCalibration.verticalMarkerDistanceMillimeters;
+
+            final rightVerticalScale =
+                calibration.rightDistancePixels /
+                MarkerCalibration.verticalMarkerDistanceMillimeters;
+
+            debugPrint(
+              'CALIBRATION VERTICAL '
+              'left=${calibration.leftDistancePixels.toStringAsFixed(2)}px '
+              'leftScale=${leftVerticalScale.toStringAsFixed(4)}px/mm',
+            );
+
+            debugPrint(
+              'CALIBRATION VERTICAL '
+              'right=${calibration.rightDistancePixels.toStringAsFixed(2)}px '
+              'rightScale=${rightVerticalScale.toStringAsFixed(4)}px/mm',
+            );
+
             debugPrint(
               'CALIBRATION '
               'scaleDifference=${(calibration.scaleDifferenceRatio * 100).toStringAsFixed(1)}%',
@@ -683,6 +720,30 @@ class _CameraScreenState extends State<CameraScreen>
         }
 
         _frameAnalysisCount++;
+
+        if (_frameAnalysisCount <= 20) {
+          debugPrint(
+            'INITIAL CANDIDATES '
+            'frame=$_frameAnalysisCount '
+            'count=${imageInfo.ballCandidates.length}',
+          );
+
+          for (var i = 0; i < imageInfo.ballCandidates.length; i++) {
+            final candidate = imageInfo.ballCandidates[i];
+
+            debugPrint(
+              'INITIAL CANDIDATE '
+              'frame=$_frameAnalysisCount '
+              'index=$i '
+              'x=${candidate.centerX.toStringAsFixed(1)} '
+              'y=${candidate.centerY.toStringAsFixed(1)} '
+              'r=${candidate.radius.toStringAsFixed(1)} '
+              'confidence=${candidate.confidence.toStringAsFixed(3)} '
+              'combined=${candidate.isCombinedRedYellow} '
+              'motionBlur=${candidate.isMotionBlur}',
+            );
+          }
+        }
 
         final trackedBall = _ballTracker.track(
           frameIndex: _frameAnalysisCount,

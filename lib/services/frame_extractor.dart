@@ -30,6 +30,32 @@ class FrameExtractor {
     );
   }
 
+  static Future<ExtractedVideoFrame?> extractFrameByIndex({
+    required String videoPath,
+    required int frameIndex,
+  }) async {
+    final result = await _nativeFrameChannel.invokeMapMethod<String, Object?>(
+      'readFrameImage',
+      <String, Object?>{'videoPath': videoPath, 'frameIndex': frameIndex},
+    );
+
+    if (result == null) {
+      return null;
+    }
+
+    final imageBytes = result['imageBytes'];
+    final ptsMs = result['ptsMs'];
+
+    if (imageBytes is! Uint8List || ptsMs is! num) {
+      return null;
+    }
+
+    return ExtractedVideoFrame(
+      position: Duration(microseconds: (ptsMs.toDouble() * 1000.0).round()),
+      imageBytes: imageBytes,
+    );
+  }
+
   static Stream<ExtractedVideoFrame> extractFrames({
     required String videoPath,
     required Duration duration,

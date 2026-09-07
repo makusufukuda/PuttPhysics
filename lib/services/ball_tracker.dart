@@ -37,6 +37,11 @@ class BallTracker {
   bool _movementStarted = false;
   bool _trackingEnded = false;
 
+  static const int _requiredInitialStableFrames = 3;
+  static const double _maximumInitialStableMovementPixels = 20.0;
+
+  final List<BallCandidate> _initialCandidateHistory = [];
+
   int get missedFrameCount => _missedFrameCount;
 
   TrackedBall? get lastTrackedBall => _lastTrackedBall;
@@ -47,6 +52,7 @@ class BallTracker {
     _missedFrameCount = 0;
     _movementStarted = false;
     _trackingEnded = false;
+    _initialCandidateHistory.clear();
   }
 
   TrackedBall? track({
@@ -64,7 +70,7 @@ class BallTracker {
     }
 
     final selectedCandidate = _lastTrackedBall == null
-        ? _selectInitialCandidate(candidates)
+        ? _selectInitialCandidate(candidates, frameIndex)
         : _findBestMatchingCandidate(candidates, timestamp, frameIndex);
 
     if (selectedCandidate == null) {
@@ -111,23 +117,96 @@ class BallTracker {
     }
   }
 
-  BallCandidate? _selectInitialCandidate(List<BallCandidate> candidates) {
+  BallCandidate? _selectInitialCandidate(
+    List<BallCandidate> candidates,
+    int frameIndex,
+  ) {
     for (final candidate in candidates) {
       if (candidate.isCombinedRedYellow && !candidate.isMotionBlur) {
+        _initialCandidateHistory.clear();
+
+        debugPrint(
+          'TRACKER INITIAL SELECT '
+          'frame=$frameIndex '
+          'type=combined '
+          'x=${candidate.centerX.toStringAsFixed(1)} '
+          'y=${candidate.centerY.toStringAsFixed(1)}',
+        );
+
         return candidate;
       }
     }
+
+    BallCandidate? bestMatch;
+    double bestDistance = double.infinity;
+
+    if (_initialCandidateHistory.isNotEmpty) {
+      final previousSeed = _initialCandidateHistory.last;
+
+      for (final candidate in candidates) {
+        final dx = candidate.centerX - previousSeed.centerX;
+        final dy = candidate.centerY - previousSeed.centerY;
+        final distance = math.sqrt((dx * dx) + (dy * dy));
+
+        if (distance <= _maximumInitialStableMovementPixels &&
+            distance < bestDistance) {
+          bestMatch = candidate;
+          bestDistance = distance;
+        }
+      }
+    }
+
+    if (bestMatch != null) {
+      _initialCandidateHistory.add(bestMatch);
+
+      debugPrint(
+        'TRACKER INITIAL WAIT '
+        'frame=$frameIndex '
+        'stableFrames=${_initialCandidateHistory.length} '
+        'x=${bestMatch.centerX.toStringAsFixed(1)} '
+        'y=${bestMatch.centerY.toStringAsFixed(1)} '
+        'motionBlur=${bestMatch.isMotionBlur}',
+      );
+
+      if (_initialCandidateHistory.length >= _requiredInitialStableFrames) {
+        final selected = bestMatch;
+        _initialCandidateHistory.clear();
+
+        debugPrint(
+          'TRACKER INITIAL STABLE '
+          'frame=$frameIndex '
+          'x=${selected.centerX.toStringAsFixed(1)} '
+          'y=${selected.centerY.toStringAsFixed(1)}',
+        );
+
+        return selected;
+      }
+
+      return null;
+    }
+
+    BallCandidate? seed;
 
     for (final candidate in candidates) {
       if (!candidate.isMotionBlur) {
-        return candidate;
+        seed = candidate;
+        break;
       }
     }
 
+    seed ??= candidates.reduce((a, b) => a.radius >= b.radius ? a : b);
+
+    _initialCandidateHistory
+      ..clear()
+      ..add(seed);
+
     debugPrint(
-      'TRACKER INITIAL REJECT '
-      'reason=motionBlurOnly '
-      'candidateCount=${candidates.length}',
+      'TRACKER INITIAL WAIT '
+      'frame=$frameIndex '
+      'stableFrames=1 '
+      'x=${seed.centerX.toStringAsFixed(1)} '
+      'y=${seed.centerY.toStringAsFixed(1)} '
+      'motionBlur=${seed.isMotionBlur}',
     );
 
     return null;

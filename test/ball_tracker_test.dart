@@ -36,7 +36,7 @@ void main() {
     test('preserves motion blur candidate flag', () {
       final tracker = BallTracker();
 
-      final result = tracker.track(
+      final first = tracker.track(
         frameIndex: 1,
         timestamp: const Duration(milliseconds: 0),
         candidates: const [
@@ -50,9 +50,41 @@ void main() {
         ],
       );
 
-      expect(result, isNotNull);
-      expect(result!.centerX, 100);
-      expect(result.centerY, 100);
+      expect(first, isNull);
+
+      final second = tracker.track(
+        frameIndex: 2,
+        timestamp: const Duration(milliseconds: 33),
+        candidates: const [
+          BallCandidate(
+            centerX: 100,
+            centerY: 100,
+            radius: 20,
+            confidence: 0.9,
+            isMotionBlur: true,
+          ),
+        ],
+      );
+
+      expect(second, isNull);
+
+      final third = tracker.track(
+        frameIndex: 3,
+        timestamp: const Duration(milliseconds: 66),
+        candidates: const [
+          BallCandidate(
+            centerX: 100,
+            centerY: 100,
+            radius: 20,
+            confidence: 0.9,
+            isMotionBlur: true,
+          ),
+        ],
+      );
+
+      expect(third, isNotNull);
+      expect(third!.centerX, 100);
+      expect(third.centerY, 100);
     });
 
     test('tracks nearby candidate', () {
@@ -857,6 +889,111 @@ void main() {
       );
 
       expect(result, isNull);
+    });
+
+    test(
+      'does not lock onto a stable background candidate before the ball',
+      () {
+        final tracker = BallTracker();
+
+        BallCandidate background(double x, double y) => BallCandidate(
+          centerX: x,
+          centerY: y,
+          radius: 8,
+          confidence: 0.75,
+          isMotionBlur: true,
+        );
+
+        BallCandidate ball(double x, double y) => BallCandidate(
+          centerX: x,
+          centerY: y,
+          radius: 15,
+          confidence: 0.48,
+          isMotionBlur: true,
+        );
+
+        final frames = [
+          [background(128.5, 414.5), ball(330.5, 761.5)],
+          [background(127.5, 413.5), ball(332.5, 761.5)],
+          [background(128.5, 413.5), ball(332.5, 762.5)],
+          [background(128.5, 414.5), ball(333.5, 762.5)],
+        ];
+
+        dynamic result;
+
+        for (var i = 0; i < frames.length; i++) {
+          result = tracker.track(
+            frameIndex: i + 1,
+            timestamp: Duration(milliseconds: i * 33),
+            candidates: frames[i],
+          );
+        }
+
+        expect(result, isNotNull);
+        expect(result!.centerX, closeTo(333.5, 2.0));
+        expect(result.centerY, closeTo(762.5, 2.0));
+        expect(result.radius, closeTo(15.0, 1.0));
+      },
+    );
+
+    test('waits for a stable initial candidate across frames', () {
+      final tracker = BallTracker();
+
+      final first = tracker.track(
+        frameIndex: 1,
+        timestamp: const Duration(milliseconds: 0),
+        candidates: const [
+          BallCandidate(
+            centerX: 328.0,
+            centerY: 762.0,
+            radius: 25,
+            confidence: 0.8,
+            isMotionBlur: true,
+          ),
+        ],
+      );
+
+      expect(first, isNull);
+
+      final second = tracker.track(
+        frameIndex: 2,
+        timestamp: const Duration(milliseconds: 33),
+        candidates: const [
+          BallCandidate(
+            centerX: 328.5,
+            centerY: 762.5,
+            radius: 25,
+            confidence: 0.8,
+            isMotionBlur: true,
+          ),
+        ],
+      );
+
+      expect(second, isNull);
+
+      final third = tracker.track(
+        frameIndex: 3,
+        timestamp: const Duration(milliseconds: 66),
+        candidates: const [
+          BallCandidate(
+            centerX: 216.5,
+            centerY: 998.5,
+            radius: 26,
+            confidence: 0.729,
+          ),
+          BallCandidate(
+            centerX: 328.5,
+            centerY: 762.5,
+            radius: 25,
+            confidence: 0.8,
+            isMotionBlur: true,
+          ),
+        ],
+      );
+
+      expect(third, isNotNull);
+      expect(third!.centerX, closeTo(328.5, 1.0));
+      expect(third.centerY, closeTo(762.5, 1.0));
     });
   });
 }
