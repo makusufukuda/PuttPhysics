@@ -272,6 +272,18 @@ class _CameraScreenState extends State<CameraScreen>
 
       await _initializeCameraFuture;
 
+      final minZoom = await controller.getMinZoomLevel();
+      final maxZoom = await controller.getMaxZoomLevel();
+      const requestedZoom = 2.0;
+      final zoom = requestedZoom.clamp(minZoom, maxZoom).toDouble();
+
+      await controller.setZoomLevel(zoom);
+
+      debugPrint(
+        'CAMERA ZOOM requested=$requestedZoom '
+        'applied=$zoom min=$minZoom max=$maxZoom',
+      );
+
       if (mounted) {
         setState(() {});
       }
