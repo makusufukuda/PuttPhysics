@@ -208,6 +208,25 @@ class MarkerDetector {
             final score =
                 topYDifference + bottomYDifference + (spanDifference * 0.25);
 
+            debugPrint(
+              'MARKER SELECTION DEBUG '
+              'points='
+              '(${topLeftOrRight.centroidX.toStringAsFixed(1)},'
+              '${topLeftOrRight.centroidY.toStringAsFixed(1)}) '
+              '(${topRightOrLeft.centroidX.toStringAsFixed(1)},'
+              '${topRightOrLeft.centroidY.toStringAsFixed(1)}) '
+              '(${bottomLeftOrRight.centroidX.toStringAsFixed(1)},'
+              '${bottomLeftOrRight.centroidY.toStringAsFixed(1)}) '
+              '(${bottomRightOrLeft.centroidX.toStringAsFixed(1)},'
+              '${bottomRightOrLeft.centroidY.toStringAsFixed(1)}) '
+              'topYDiff=${topYDifference.toStringAsFixed(1)} '
+              'bottomYDiff=${bottomYDifference.toStringAsFixed(1)} '
+              'topSpan=${topHorizontalSpan.toStringAsFixed(1)} '
+              'bottomSpan=${bottomHorizontalSpan.toStringAsFixed(1)} '
+              'spanDiff=${spanDifference.toStringAsFixed(1)} '
+              'score=${score.toStringAsFixed(1)}',
+            );
+
             if (bestScore == null || score < bestScore) {
               bestScore = score;
               bestSelection = List<Blob>.from(selection);
@@ -236,7 +255,7 @@ class MarkerDetector {
 
     final aspectRatio = width / height;
 
-    if (aspectRatio < 0.60 || aspectRatio > 2.20) {
+    if (aspectRatio < 0.60 || aspectRatio > 3.00) {
       return false;
     }
 

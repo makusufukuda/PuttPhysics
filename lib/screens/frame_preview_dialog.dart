@@ -169,6 +169,37 @@ class _FramePreviewDialogState extends State<FramePreviewDialog> {
 
     final hsv = ColorDetector.rgbToHsv(red: red, green: green, blue: blue);
 
+    var nearbyPixelCount = 0;
+    var nearbyBluePixelCount = 0;
+
+    final minX = (x - 10).clamp(0, image.width - 1);
+    final maxX = (x + 10).clamp(0, image.width - 1);
+    final minY = (y - 10).clamp(0, image.height - 1);
+    final maxY = (y + 10).clamp(0, image.height - 1);
+
+    for (var sampleY = minY; sampleY <= maxY; sampleY++) {
+      for (var sampleX = minX; sampleX <= maxX; sampleX++) {
+        nearbyPixelCount++;
+
+        final nearbyPixel = image.getPixel(sampleX, sampleY);
+        final nearbyHsv = ColorDetector.rgbToHsv(
+          red: nearbyPixel.r.toInt(),
+          green: nearbyPixel.g.toInt(),
+          blue: nearbyPixel.b.toInt(),
+        );
+
+        final isBlue =
+            nearbyHsv.hue >= 205 &&
+            nearbyHsv.hue <= 255 &&
+            nearbyHsv.saturation >= 0.20 &&
+            nearbyHsv.value >= 0.15;
+
+        if (isBlue) {
+          nearbyBluePixelCount++;
+        }
+      }
+    }
+
     debugPrint(
       'TAP COLOR DIAGNOSTIC '
       'x=$x y=$y '
@@ -176,6 +207,13 @@ class _FramePreviewDialogState extends State<FramePreviewDialog> {
       'HSV=${hsv.hue.toStringAsFixed(1)},'
       '${hsv.saturation.toStringAsFixed(3)},'
       '${hsv.value.toStringAsFixed(3)}',
+    );
+
+    debugPrint(
+      'TAP BLUE NEARBY '
+      'center=$x,$y '
+      'area=${maxX - minX + 1}x${maxY - minY + 1} '
+      'bluePixels=$nearbyBluePixelCount/$nearbyPixelCount',
     );
   }
 
@@ -558,19 +596,23 @@ class _MarkerOverlayPainter extends CustomPainter {
       ..style = PaintingStyle.fill;
 
     for (final marker in markers) {
-      final left = (marker.centerX - marker.width / 2) * scaleX;
-      final top = (marker.centerY - marker.height / 2) * scaleY;
+      final center = Offset(marker.centerX * scaleX, marker.centerY * scaleY);
 
-      final rect = Rect.fromLTWH(
-        left,
-        top,
-        marker.width * scaleX,
-        marker.height * scaleY,
+      // Keep the rectangle centered on the detected marker position, but make
+      // very small distant markers large enough to see in the preview.
+      final displayWidth = (marker.width * scaleX).clamp(16.0, double.infinity);
+      final displayHeight = (marker.height * scaleY).clamp(
+        16.0,
+        double.infinity,
+      );
+
+      final rect = Rect.fromCenter(
+        center: center,
+        width: displayWidth,
+        height: displayHeight,
       );
 
       canvas.drawRect(rect, rectanglePaint);
-
-      final center = Offset(marker.centerX * scaleX, marker.centerY * scaleY);
 
       canvas.drawCircle(center, 4, centerPaint);
 
