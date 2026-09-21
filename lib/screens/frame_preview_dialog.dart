@@ -1,6 +1,9 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:image/image.dart' as img;
+
+import '../services/color_detector.dart';
 
 class BallCandidateViewData {
   const BallCandidateViewData({
@@ -32,7 +35,7 @@ class MarkerViewData {
   final String position;
 }
 
-class FramePreviewDialog extends StatelessWidget {
+class FramePreviewDialog extends StatefulWidget {
   const FramePreviewDialog({
     super.key,
     required this.imageBytes,
@@ -117,6 +120,13 @@ class FramePreviewDialog extends StatelessWidget {
   final List<BallCandidateViewData> ballCandidates;
   final List<MarkerViewData> markers;
 
+  @override
+  State<FramePreviewDialog> createState() => _FramePreviewDialogState();
+}
+
+class _FramePreviewDialogState extends State<FramePreviewDialog> {
+  Offset? _tappedImagePosition;
+
   String _formatPosition(Duration value) {
     final minutes = value.inMinutes.remainder(60).toString().padLeft(2, '0');
     final seconds = value.inSeconds.remainder(60).toString().padLeft(2, '0');
@@ -132,177 +142,143 @@ class FramePreviewDialog extends StatelessWidget {
     return '${(ratio * 100).toStringAsFixed(3)}%';
   }
 
+  void _inspectTappedPixel(Offset localPosition, Size displaySize) {
+    final x = (localPosition.dx / displaySize.width * widget.imageWidth)
+        .floor()
+        .clamp(0, widget.imageWidth - 1);
+    final y = (localPosition.dy / displaySize.height * widget.imageHeight)
+        .floor()
+        .clamp(0, widget.imageHeight - 1);
+
+    setState(() {
+      _tappedImagePosition = Offset(x.toDouble(), y.toDouble());
+    });
+
+    final image = img.decodeImage(widget.imageBytes);
+
+    if (image == null) {
+      debugPrint('TAP COLOR DIAGNOSTIC ERROR image decode failed');
+      return;
+    }
+
+    final pixel = image.getPixel(x, y);
+
+    final red = pixel.r.toInt();
+    final green = pixel.g.toInt();
+    final blue = pixel.b.toInt();
+
+    final hsv = ColorDetector.rgbToHsv(red: red, green: green, blue: blue);
+
+    debugPrint(
+      'TAP COLOR DIAGNOSTIC '
+      'x=$x y=$y '
+      'RGB=$red,$green,$blue '
+      'HSV=${hsv.hue.toStringAsFixed(1)},'
+      '${hsv.saturation.toStringAsFixed(3)},'
+      '${hsv.value.toStringAsFixed(3)}',
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final hasBestCandidate =
-        bestCandidateCenterX != null &&
-        bestCandidateCenterY != null &&
-        bestCandidateRadius != null &&
-        bestCandidateConfidence != null;
+        widget.bestCandidateCenterX != null &&
+        widget.bestCandidateCenterY != null &&
+        widget.bestCandidateRadius != null &&
+        widget.bestCandidateConfidence != null;
     final hasLargestBlob =
-        largestBlobPixelCount != null &&
-        largestBlobCentroidX != null &&
-        largestBlobCentroidY != null &&
-        largestBlobMinX != null &&
-        largestBlobMinY != null &&
-        largestBlobWidth != null &&
-        largestBlobHeight != null;
+        widget.largestBlobPixelCount != null &&
+        widget.largestBlobCentroidX != null &&
+        widget.largestBlobCentroidY != null &&
+        widget.largestBlobMinX != null &&
+        widget.largestBlobMinY != null &&
+        widget.largestBlobWidth != null &&
+        widget.largestBlobHeight != null;
 
     return AlertDialog(
-      title: Text('取得フレーム ${_formatPosition(position)}'),
+      title: Text('取得フレーム ${_formatPosition(widget.position)}'),
       content: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 600, maxHeight: 720),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('$imageWidth × $imageHeight px'),
-            const SizedBox(height: 4),
-            Text(
-              '中央座標: ($centerX, $centerY)',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            Text(
-              '中央 RGB: $centerRed, $centerGreen, $centerBlue',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            Text(
-              '中央 HSV: '
-              '${centerHue.toStringAsFixed(1)}, '
-              '${centerSaturation.toStringAsFixed(3)}, '
-              '${centerValue.toStringAsFixed(3)}',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            Text(
-              '中央色判定: '
-              '${centerIsYellow ? '黄色 ' : ''}'
-              '${centerIsRed ? '赤' : ''}'
-              '${!centerIsYellow && !centerIsRed ? '対象外' : ''}',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            const Divider(height: 20),
-            Text(
-              '全画素数: $totalPixels',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            Text(
-              '黄色画素数: $yellowPixels '
-              '(${_formatPercent(yellowRatio)})',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            Text(
-              '赤色画素数: $redPixels '
-              '(${_formatPercent(redRatio)})',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            Text(
-              '対象色合計: $targetColorPixels',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            const Divider(height: 20),
-            Text(
-              'Blob候補数: $blobCount',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            if (hasLargestBlob) ...[
-              Text(
-                '最大Blob画素数: $largestBlobPixelCount',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-              Text(
-                '重心: '
-                '(${largestBlobCentroidX!.toStringAsFixed(1)}, '
-                '${largestBlobCentroidY!.toStringAsFixed(1)})',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-              Text(
-                '外接矩形: '
-                '$largestBlobWidth × $largestBlobHeight px',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ] else
-              const Divider(height: 20),
-            Text(
-              'BallCandidate候補数: $ballCandidateCount',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            if (ballCandidates.isNotEmpty)
-              CustomPaint(
-                painter: _AllBallCandidatePainter(
-                  sourceWidth: imageWidth,
-                  sourceHeight: imageHeight,
-                  ballCandidates: ballCandidates,
-                ),
-              ),
-
-            if (hasBestCandidate) ...[
-              Text(
-                '最良候補の中心: '
-                '(${bestCandidateCenterX!.toStringAsFixed(1)}, '
-                '${bestCandidateCenterY!.toStringAsFixed(1)})',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-              Text(
-                '推定半径: ${bestCandidateRadius!.toStringAsFixed(1)} px',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-              Text(
-                '信頼度: '
-                '${bestCandidateConfidence!.toStringAsFixed(3)} '
-                '(${(bestCandidateConfidence! * 100).toStringAsFixed(1)}%)',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ] else
-              Text('最良候補: なし', style: Theme.of(context).textTheme.bodySmall),
-
-            const SizedBox(height: 12),
+            // Color-tap diagnostic mode:
+            // Hide the text diagnostics temporarily so the preview image
+            // has enough room for accurate marker tapping.
             Flexible(
               child: InteractiveViewer(
                 minScale: 0.5,
                 maxScale: 5,
                 child: AspectRatio(
-                  aspectRatio: imageWidth / imageHeight,
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      Image.memory(
-                        imageBytes,
-                        fit: BoxFit.fill,
-                        gaplessPlayback: true,
-                      ),
-                      if (hasLargestBlob)
-                        CustomPaint(
-                          painter: _BlobOverlayPainter(
-                            sourceWidth: imageWidth,
-                            sourceHeight: imageHeight,
-                            minX: largestBlobMinX!,
-                            minY: largestBlobMinY!,
-                            blobWidth: largestBlobWidth!,
-                            blobHeight: largestBlobHeight!,
-                            centroidX: largestBlobCentroidX!,
-                            centroidY: largestBlobCentroidY!,
-                          ),
-                        ),
+                  aspectRatio: widget.imageWidth / widget.imageHeight,
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final displaySize = Size(
+                        constraints.maxWidth,
+                        constraints.maxHeight,
+                      );
 
-                      if (hasBestCandidate)
-                        CustomPaint(
-                          painter: _BallCandidatePainter(
-                            sourceWidth: imageWidth,
-                            sourceHeight: imageHeight,
-                            centerX: bestCandidateCenterX!,
-                            centerY: bestCandidateCenterY!,
-                            radius: bestCandidateRadius!,
-                            confidence: bestCandidateConfidence!,
-                          ),
+                      return GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTapDown: (details) {
+                          _inspectTappedPixel(
+                            details.localPosition,
+                            displaySize,
+                          );
+                        },
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            Image.memory(
+                              widget.imageBytes,
+                              fit: BoxFit.fill,
+                              gaplessPlayback: true,
+                            ),
+                            if (hasLargestBlob)
+                              CustomPaint(
+                                painter: _BlobOverlayPainter(
+                                  sourceWidth: widget.imageWidth,
+                                  sourceHeight: widget.imageHeight,
+                                  minX: widget.largestBlobMinX!,
+                                  minY: widget.largestBlobMinY!,
+                                  blobWidth: widget.largestBlobWidth!,
+                                  blobHeight: widget.largestBlobHeight!,
+                                  centroidX: widget.largestBlobCentroidX!,
+                                  centroidY: widget.largestBlobCentroidY!,
+                                ),
+                              ),
+
+                            if (hasBestCandidate)
+                              CustomPaint(
+                                painter: _BallCandidatePainter(
+                                  sourceWidth: widget.imageWidth,
+                                  sourceHeight: widget.imageHeight,
+                                  centerX: widget.bestCandidateCenterX!,
+                                  centerY: widget.bestCandidateCenterY!,
+                                  radius: widget.bestCandidateRadius!,
+                                  confidence: widget.bestCandidateConfidence!,
+                                ),
+                              ),
+                            if (widget.markers.isNotEmpty)
+                              CustomPaint(
+                                painter: _MarkerOverlayPainter(
+                                  sourceWidth: widget.imageWidth,
+                                  sourceHeight: widget.imageHeight,
+                                  markers: widget.markers,
+                                ),
+                              ),
+                            if (_tappedImagePosition != null)
+                              CustomPaint(
+                                painter: _TapPositionPainter(
+                                  sourceWidth: widget.imageWidth,
+                                  sourceHeight: widget.imageHeight,
+                                  position: _tappedImagePosition!,
+                                ),
+                              ),
+                          ],
                         ),
-                      if (markers.isNotEmpty)
-                        CustomPaint(
-                          painter: _MarkerOverlayPainter(
-                            sourceWidth: imageWidth,
-                            sourceHeight: imageHeight,
-                            markers: markers,
-                          ),
-                        ),
-                    ],
+                      );
+                    },
                   ),
                 ),
               ),
@@ -624,5 +600,49 @@ class _MarkerOverlayPainter extends CustomPainter {
     return sourceWidth != oldDelegate.sourceWidth ||
         sourceHeight != oldDelegate.sourceHeight ||
         markers != oldDelegate.markers;
+  }
+}
+
+class _TapPositionPainter extends CustomPainter {
+  const _TapPositionPainter({
+    required this.sourceWidth,
+    required this.sourceHeight,
+    required this.position,
+  });
+
+  final int sourceWidth;
+  final int sourceHeight;
+  final Offset position;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final scaleX = size.width / sourceWidth;
+    final scaleY = size.height / sourceHeight;
+
+    final center = Offset(position.dx * scaleX, position.dy * scaleY);
+
+    final paint = Paint()
+      ..color = Colors.red
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3;
+
+    canvas.drawCircle(center, 12, paint);
+    canvas.drawLine(
+      Offset(center.dx - 18, center.dy),
+      Offset(center.dx + 18, center.dy),
+      paint,
+    );
+    canvas.drawLine(
+      Offset(center.dx, center.dy - 18),
+      Offset(center.dx, center.dy + 18),
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _TapPositionPainter oldDelegate) {
+    return sourceWidth != oldDelegate.sourceWidth ||
+        sourceHeight != oldDelegate.sourceHeight ||
+        position != oldDelegate.position;
   }
 }

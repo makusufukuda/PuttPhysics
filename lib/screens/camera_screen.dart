@@ -12,6 +12,7 @@ import '../models/tracking_session.dart';
 import '../models/marker_calibration_result.dart';
 import '../services/ball_tracker.dart';
 import '../services/blue_marker_diagnostic.dart';
+import '../services/green_marker_diagnostic.dart';
 import '../services/marker_detector.dart';
 import '../services/marker_calibration.dart';
 import '../services/real_speed_calculator.dart';
@@ -72,7 +73,7 @@ class _CameraScreenState extends State<CameraScreen>
     }
   }
 
-  static const double _videoFps = 30.0;
+  static const double _videoFps = 60.0;
   CameraController? _cameraController;
   Future<void>? _initializeCameraFuture;
   VideoPlayerController? _videoPlayerController;
@@ -163,6 +164,7 @@ class _CameraScreenState extends State<CameraScreen>
       );
 
       BlueMarkerDiagnostic.inspect(imageBytes, frameIndex: frameIndex);
+      GreenMarkerDiagnostic.inspect(imageBytes, frameIndex: frameIndex);
 
       final markers = MarkerDetector.detect(imageBytes);
 
@@ -265,6 +267,7 @@ class _CameraScreenState extends State<CameraScreen>
         backCamera,
         ResolutionPreset.high,
         enableAudio: false,
+        fps: 60,
       );
 
       _cameraController = controller;
@@ -274,7 +277,7 @@ class _CameraScreenState extends State<CameraScreen>
 
       final minZoom = await controller.getMinZoomLevel();
       final maxZoom = await controller.getMaxZoomLevel();
-      const requestedZoom = 2.0;
+      const requestedZoom = 1.5;
       final zoom = requestedZoom.clamp(minZoom, maxZoom).toDouble();
 
       await controller.setZoomLevel(zoom);
@@ -482,6 +485,7 @@ class _CameraScreenState extends State<CameraScreen>
         imageBytes,
         debugFrameIndex: frameIndex,
       );
+      GreenMarkerDiagnostic.inspect(imageBytes, frameIndex: frameIndex);
       final markers = MarkerDetector.detect(imageBytes);
 
       if (imageInfo == null) {
