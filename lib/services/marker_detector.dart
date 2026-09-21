@@ -39,9 +39,13 @@ class MarkerDetector {
       }
     }
 
-    final blobs = BlobAnalyzer.extractBlobs(blueMask, minimumPixelCount: 100);
+    // Diagnostic: keep smaller blue blobs so we can determine whether
+    // distant calibration markers are being discarded by the 100-pixel cutoff.
+    final blobs = BlobAnalyzer.extractBlobs(blueMask, minimumPixelCount: 20);
 
-    final markerBlobs = blobs.where(_looksLikeMarker).toList();
+    final markerBlobs = _removeNearbyDuplicates(
+      blobs.where(_looksLikeMarker).toList(),
+    );
 
     debugPrint(
       'MARKER DEBUG image=${image.width}x${image.height} '
@@ -113,6 +117,59 @@ class MarkerDetector {
     return results;
   }
 
+  static List<Blob> _removeNearbyDuplicates(List<Blob> blobs) {
+    final sorted = [...blobs]
+      ..sort((a, b) => b.pixelCount.compareTo(a.pixelCount));
+
+    final kept = <Blob>[];
+
+    for (final blob in sorted) {
+      final overlapsExisting = kept.any((existing) {
+        final dx = blob.centroidX - existing.centroidX;
+        final dy = blob.centroidY - existing.centroidY;
+
+        final distanceSquared = (dx * dx) + (dy * dy);
+
+        final smallerSize = [
+          blob.width,
+          blob.height,
+          existing.width,
+          existing.height,
+        ].reduce((a, b) => a < b ? a : b);
+
+        final limit = smallerSize / 2.0;
+
+        final centerInsideExisting =
+            blob.centroidX >= existing.minX &&
+            blob.centroidX <= existing.maxX &&
+            blob.centroidY >= existing.minY &&
+            blob.centroidY <= existing.maxY;
+
+        return distanceSquared <= limit * limit || centerInsideExisting;
+      });
+
+      if (!overlapsExisting) {
+        kept.add(blob);
+      }
+    }
+
+    return kept;
+  }
+
+  static List<Blob>? selectBestFourMarkerBlobsForTesting(List<Blob> blobs) {
+    final markerBlobs = _removeNearbyDuplicates(
+      blobs.where(_looksLikeMarker).toList(),
+    );
+
+    if (markerBlobs.length < 4) {
+      return null;
+    }
+
+    return markerBlobs.length == 4
+        ? markerBlobs
+        : _selectBestFourMarkerBlobs(markerBlobs);
+  }
+
   static List<Blob>? _selectBestFourMarkerBlobs(List<Blob> blobs) {
     if (blobs.length < 4) {
       return null;
@@ -167,7 +224,9 @@ class MarkerDetector {
     final width = blob.maxX - blob.minX + 1;
     final height = blob.maxY - blob.minY + 1;
 
-    if (width < 15 || height < 15) {
+    // Perspective makes the far calibration markers much smaller than
+    // the near markers in the current rear-camera setup.
+    if (width < 6 || height < 6) {
       return false;
     }
 
