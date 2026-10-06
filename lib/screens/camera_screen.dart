@@ -13,6 +13,7 @@ import '../models/marker_calibration_result.dart';
 import '../services/ball_tracker.dart';
 import '../services/blue_marker_diagnostic.dart';
 import '../services/green_marker_diagnostic.dart';
+import '../services/pink_marker_diagnostic.dart';
 import '../services/marker_detector.dart';
 import '../services/marker_calibration.dart';
 import '../services/real_speed_calculator.dart';
@@ -165,6 +166,7 @@ class _CameraScreenState extends State<CameraScreen>
 
       BlueMarkerDiagnostic.inspect(imageBytes, frameIndex: frameIndex);
       GreenMarkerDiagnostic.inspect(imageBytes, frameIndex: frameIndex);
+      PinkMarkerDiagnostic.inspect(imageBytes, frameIndex: frameIndex);
 
       final markers = MarkerDetector.detect(imageBytes);
 
@@ -486,6 +488,7 @@ class _CameraScreenState extends State<CameraScreen>
         debugFrameIndex: frameIndex,
       );
       GreenMarkerDiagnostic.inspect(imageBytes, frameIndex: frameIndex);
+      PinkMarkerDiagnostic.inspect(imageBytes, frameIndex: frameIndex);
       final markers = MarkerDetector.detect(imageBytes);
 
       if (imageInfo == null) {
