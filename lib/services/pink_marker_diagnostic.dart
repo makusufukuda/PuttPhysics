@@ -54,11 +54,7 @@ class PinkMarkerDiagnostic {
 
         // Diagnostic only:
         // Broad pink range based on measured putter-marker samples.
-        final looksPink =
-            hsv.hue >= 320 &&
-            hsv.hue <= 355 &&
-            hsv.saturation >= 0.30 &&
-            hsv.value >= 0.30;
+        final looksPink = ColorDetector.isPink(hsv);
 
         pinkMask.setPixel(x, y, looksPink);
 

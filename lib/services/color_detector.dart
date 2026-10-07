@@ -59,4 +59,11 @@ class ColorDetector {
 
     return isRedHue && hsv.saturation >= 0.35 && hsv.value >= 0.25;
   }
+
+  static bool isPink(HsvColorValue hsv) {
+    return hsv.hue >= 320 &&
+        hsv.hue <= 355 &&
+        hsv.saturation >= 0.30 &&
+        hsv.value >= 0.30;
+  }
 }
