@@ -7,6 +7,7 @@ import 'package:flutter/services.dart' show MethodChannel, PlatformException;
 import 'package:video_player/video_player.dart';
 
 import '../services/frame_extractor.dart';
+import '../services/debug_log.dart';
 import '../services/image_inspector.dart';
 import '../models/tracking_session.dart';
 import '../models/marker_calibration_result.dart';
@@ -698,7 +699,7 @@ class _CameraScreenState extends State<CameraScreen>
       )) {
         final imageInfo = ImageInspector.inspect(
           frame.imageBytes,
-          debugFrameIndex: _frameAnalysisCount + 1,
+          debugFrameIndex: DebugLog.verbose ? _frameAnalysisCount + 1 : null,
         );
 
         if (imageInfo == null) {
@@ -771,7 +772,7 @@ class _CameraScreenState extends State<CameraScreen>
           frameIndex: _frameAnalysisCount,
         );
 
-        debugPrint(
+        DebugLog.print(
           'AUTO PUTTER DETECTION '
           'frame=$_frameAnalysisCount '
           'time=${frame.position.inMilliseconds}ms '
@@ -780,7 +781,7 @@ class _CameraScreenState extends State<CameraScreen>
         );
 
         if (_frameAnalysisCount <= 20) {
-          debugPrint(
+          DebugLog.print(
             'INITIAL CANDIDATES '
             'frame=$_frameAnalysisCount '
             'count=${imageInfo.ballCandidates.length}',
@@ -789,7 +790,7 @@ class _CameraScreenState extends State<CameraScreen>
           for (var i = 0; i < imageInfo.ballCandidates.length; i++) {
             final candidate = imageInfo.ballCandidates[i];
 
-            debugPrint(
+            DebugLog.print(
               'INITIAL CANDIDATE '
               'frame=$_frameAnalysisCount '
               'index=$i '
@@ -812,7 +813,7 @@ class _CameraScreenState extends State<CameraScreen>
         if (trackedBall == null) {
           final largestBlob = imageInfo.largestBlob;
 
-          debugPrint(
+          DebugLog.print(
             'AutoTrackMiss '
             'frame=$_frameAnalysisCount '
             'time=${frame.position.inMilliseconds}ms '
@@ -833,7 +834,7 @@ class _CameraScreenState extends State<CameraScreen>
         final metrics = _trackingSession.latestMetrics();
         final smoothedMetrics = _trackingSession.latestSmoothedMetrics();
 
-        debugPrint(
+        DebugLog.print(
           'AutoTrackedBall '
           'frame=${trackedBall.frameIndex} '
           'time=${trackedBall.timestamp.inMilliseconds}ms '
@@ -847,7 +848,7 @@ class _CameraScreenState extends State<CameraScreen>
             trackedBall.centerY,
           );
 
-          debugPrint(
+          DebugLog.print(
             'BALL SCALE '
             'frame=${trackedBall.frameIndex} '
             'y=${trackedBall.centerY.toStringAsFixed(1)} '
@@ -856,7 +857,7 @@ class _CameraScreenState extends State<CameraScreen>
         }
 
         if (metrics != null) {
-          debugPrint(
+          DebugLog.print(
             'AutoTrackingMetrics '
             'dt=${metrics.deltaTimeSeconds.toStringAsFixed(4)}s '
             'distance=${metrics.distancePixels.toStringAsFixed(2)}px '
@@ -875,7 +876,7 @@ class _CameraScreenState extends State<CameraScreen>
             );
 
             if (realSpeed != null) {
-              debugPrint(
+              DebugLog.print(
                 'REAL SPEED '
                 'frame=${previousBall.frameIndex}->${trackedBall.frameIndex} '
                 'middleY=${realSpeed.middleY.toStringAsFixed(1)} '
@@ -888,7 +889,7 @@ class _CameraScreenState extends State<CameraScreen>
         }
 
         if (smoothedMetrics != null) {
-          debugPrint(
+          DebugLog.print(
             'AutoTrackingSmoothed '
             'dt=${smoothedMetrics.deltaTimeSeconds.toStringAsFixed(4)}s '
             'distance=${smoothedMetrics.distancePixels.toStringAsFixed(2)}px '
@@ -897,7 +898,7 @@ class _CameraScreenState extends State<CameraScreen>
         }
       }
 
-      debugPrint(
+      DebugLog.print(
         'AutoTracking finished '
         'frames=$_frameAnalysisCount '
         'tracked=${_trackingSession.length}',

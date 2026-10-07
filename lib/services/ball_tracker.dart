@@ -1,9 +1,8 @@
 import 'dart:math' as math;
 
-import 'package:flutter/foundation.dart';
-
 import '../models/ball_candidate.dart';
 import '../models/tracked_ball.dart';
+import 'debug_log.dart';
 
 class BallTracker {
   BallTracker({
@@ -125,7 +124,7 @@ class BallTracker {
       if (candidate.isCombinedRedYellow && !candidate.isMotionBlur) {
         _initialCandidateHistory.clear();
 
-        debugPrint(
+        DebugLog.print(
           'TRACKER INITIAL SELECT '
           'frame=$frameIndex '
           'type=combined '
@@ -159,7 +158,7 @@ class BallTracker {
     if (bestMatch != null) {
       _initialCandidateHistory.add(bestMatch);
 
-      debugPrint(
+      DebugLog.print(
         'TRACKER INITIAL WAIT '
         'frame=$frameIndex '
         'stableFrames=${_initialCandidateHistory.length} '
@@ -172,7 +171,7 @@ class BallTracker {
         final selected = bestMatch;
         _initialCandidateHistory.clear();
 
-        debugPrint(
+        DebugLog.print(
           'TRACKER INITIAL STABLE '
           'frame=$frameIndex '
           'x=${selected.centerX.toStringAsFixed(1)} '
@@ -200,7 +199,7 @@ class BallTracker {
       ..clear()
       ..add(seed);
 
-    debugPrint(
+    DebugLog.print(
       'TRACKER INITIAL WAIT '
       'frame=$frameIndex '
       'stableFrames=1 '
@@ -250,7 +249,7 @@ class BallTracker {
         .clamp(0.0, 1.0);
 
     if (frameIndex != null) {
-      debugPrint(
+      DebugLog.print(
         'TRACKER PREDICTION '
         'frame=$frameIndex '
         'previousFrame=${previous.frameIndex} '
@@ -358,7 +357,7 @@ class BallTracker {
       }
 
       if (distance > movementLimit) {
-        debugPrint(
+        DebugLog.print(
           'TRACKER REJECT '
           'frame=$frameIndex '
           'reason=movement '
@@ -398,7 +397,7 @@ class BallTracker {
       }
 
       if (radiusChangeRatio > radiusChangeLimit) {
-        debugPrint(
+        DebugLog.print(
           'TRACKER REJECT '
           'frame=$frameIndex '
           'reason=radius '
@@ -441,7 +440,7 @@ class BallTracker {
                 (radiusScore * 0.15) +
                 (confidenceScore * 0.25);
 
-      debugPrint(
+      DebugLog.print(
         'TRACKER CANDIDATE '
         'frame=$frameIndex '
         'x=${candidate.centerX.toStringAsFixed(1)} '
@@ -476,7 +475,7 @@ class BallTracker {
         bestCombinedScore != null &&
         bestScore != null &&
         bestCombinedScore >= bestScore - combinedPreferenceTolerance) {
-      debugPrint(
+      DebugLog.print(
         'TRACKER SELECT '
         'frame=$frameIndex '
         'type=combined '
@@ -488,7 +487,7 @@ class BallTracker {
     }
 
     if (bestCandidate != null && bestScore != null) {
-      debugPrint(
+      DebugLog.print(
         'TRACKER SELECT '
         'frame=$frameIndex '
         'type=${bestCandidate.isMotionBlur ? 'motionBlur' : 'normal'} '
@@ -497,7 +496,7 @@ class BallTracker {
         'score=${bestScore.toStringAsFixed(3)}',
       );
     } else {
-      debugPrint(
+      DebugLog.print(
         'TRACKER NO MATCH '
         'frame=$frameIndex '
         'previousX=${previous.centerX.toStringAsFixed(1)} '

@@ -1,4 +1,5 @@
-import 'package:flutter/foundation.dart';
+import 'dart:typed_data';
+
 import 'package:image/image.dart' as img;
 
 import '../models/blob.dart';
@@ -6,6 +7,7 @@ import '../models/putter_candidate.dart';
 import 'blob_analyzer.dart';
 import 'color_detector.dart';
 import 'color_mask.dart';
+import 'debug_log.dart';
 
 class PutterDetector {
   const PutterDetector._();
@@ -52,8 +54,8 @@ class PutterDetector {
 
     candidates.sort((a, b) => b.confidence.compareTo(a.confidence));
 
-    if (frameIndex != null) {
-      debugPrint(
+    if (frameIndex != null && DebugLog.verbose) {
+      DebugLog.print(
         'PUTTER DETECTOR '
         'frame=$frameIndex '
         'pinkBlobs=${blobs.length} '
@@ -61,7 +63,7 @@ class PutterDetector {
       );
 
       for (final candidate in candidates) {
-        debugPrint(
+        DebugLog.print(
           'PUTTER CANDIDATE '
           'frame=$frameIndex '
           'x=${candidate.centerX.toStringAsFixed(1)} '
