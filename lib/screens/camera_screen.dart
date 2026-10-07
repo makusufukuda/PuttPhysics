@@ -14,6 +14,7 @@ import '../services/ball_tracker.dart';
 import '../services/blue_marker_diagnostic.dart';
 import '../services/green_marker_diagnostic.dart';
 import '../services/pink_marker_diagnostic.dart';
+import '../services/putter_detector.dart';
 import '../services/marker_detector.dart';
 import '../services/marker_calibration.dart';
 import '../services/real_speed_calculator.dart';
@@ -167,6 +168,18 @@ class _CameraScreenState extends State<CameraScreen>
       BlueMarkerDiagnostic.inspect(imageBytes, frameIndex: frameIndex);
       GreenMarkerDiagnostic.inspect(imageBytes, frameIndex: frameIndex);
       PinkMarkerDiagnostic.inspect(imageBytes, frameIndex: frameIndex);
+
+      final putterCandidates = PutterDetector.detect(
+        imageBytes,
+        frameIndex: frameIndex,
+      );
+
+      debugPrint(
+        'NATIVE FRAME PUTTER DETECTION '
+        'frameIndex=$frameIndex '
+        'count=${putterCandidates.length} '
+        'best=${putterCandidates.isEmpty ? null : putterCandidates.first}',
+      );
 
       final markers = MarkerDetector.detect(imageBytes);
 
