@@ -502,6 +502,19 @@ class _CameraScreenState extends State<CameraScreen>
       );
       GreenMarkerDiagnostic.inspect(imageBytes, frameIndex: frameIndex);
       PinkMarkerDiagnostic.inspect(imageBytes, frameIndex: frameIndex);
+
+      final putterCandidates = PutterDetector.detect(
+        imageBytes,
+        frameIndex: frameIndex,
+      );
+
+      debugPrint(
+        'VIDEO FRAME PUTTER DETECTION '
+        'frameIndex=$frameIndex '
+        'count=${putterCandidates.length} '
+        'best=${putterCandidates.isEmpty ? null : putterCandidates.first}',
+      );
+
       final markers = MarkerDetector.detect(imageBytes);
 
       if (imageInfo == null) {
@@ -752,6 +765,19 @@ class _CameraScreenState extends State<CameraScreen>
         }
 
         _frameAnalysisCount++;
+
+        final putterCandidates = PutterDetector.detect(
+          frame.imageBytes,
+          frameIndex: _frameAnalysisCount,
+        );
+
+        debugPrint(
+          'AUTO PUTTER DETECTION '
+          'frame=$_frameAnalysisCount '
+          'time=${frame.position.inMilliseconds}ms '
+          'count=${putterCandidates.length} '
+          'best=${putterCandidates.isEmpty ? null : putterCandidates.first}',
+        );
 
         if (_frameAnalysisCount <= 20) {
           debugPrint(
