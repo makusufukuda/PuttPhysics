@@ -782,6 +782,10 @@ class _CameraScreenState extends State<CameraScreen>
           candidates: putterCandidates,
         );
 
+        if (trackedPutter != null) {
+          putterTrackedFrames++;
+        }
+
         DebugLog.print(
           'AUTO PUTTER TRACKING '
           'frame=$_frameAnalysisCount '
@@ -919,6 +923,12 @@ class _CameraScreenState extends State<CameraScreen>
         'AutoTracking finished '
         'frames=$_frameAnalysisCount '
         'tracked=${_trackingSession.length}',
+      );
+
+      debugPrint(
+        'PUTTER TRACKING SUMMARY '
+        'tracked=$putterTrackedFrames '
+        'total=$_frameAnalysisCount',
       );
 
       final peak = _trackingSession.peakMetrics();
