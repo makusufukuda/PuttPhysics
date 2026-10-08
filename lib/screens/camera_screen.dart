@@ -16,6 +16,7 @@ import '../services/blue_marker_diagnostic.dart';
 import '../services/green_marker_diagnostic.dart';
 import '../services/pink_marker_diagnostic.dart';
 import '../services/putter_detector.dart';
+import '../services/putter_tracker.dart';
 import '../services/marker_detector.dart';
 import '../services/marker_calibration.dart';
 import '../services/real_speed_calculator.dart';
@@ -83,6 +84,7 @@ class _CameraScreenState extends State<CameraScreen>
   String? _recordedVideoPath;
 
   final BallTracker _ballTracker = BallTracker();
+  final PutterTracker _putterTracker = PutterTracker();
   final TrackingSession _trackingSession = TrackingSession();
 
   int _frameAnalysisCount = 0;
@@ -686,8 +688,10 @@ class _CameraScreenState extends State<CameraScreen>
 
     try {
       _ballTracker.reset();
+      _putterTracker.reset();
       _trackingSession.clear();
       _frameAnalysisCount = 0;
+      var putterTrackedFrames = 0;
 
       MarkerCalibrationResult? calibration;
 
@@ -770,6 +774,19 @@ class _CameraScreenState extends State<CameraScreen>
         final putterCandidates = PutterDetector.detect(
           frame.imageBytes,
           frameIndex: _frameAnalysisCount,
+        );
+
+        final trackedPutter = _putterTracker.track(
+          frameIndex: _frameAnalysisCount,
+          timestamp: frame.position,
+          candidates: putterCandidates,
+        );
+
+        DebugLog.print(
+          'AUTO PUTTER TRACKING '
+          'frame=$_frameAnalysisCount '
+          'time=${frame.position.inMilliseconds}ms '
+          'result=$trackedPutter',
         );
 
         DebugLog.print(
