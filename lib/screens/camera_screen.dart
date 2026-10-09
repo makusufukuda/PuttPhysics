@@ -692,6 +692,11 @@ class _CameraScreenState extends State<CameraScreen>
       _trackingSession.clear();
       _frameAnalysisCount = 0;
       var putterTrackedFrames = 0;
+      var putterCurrentStreak = 0;
+      var putterLongestStreak = 0;
+      var putterTrackingGaps = 0;
+      int? putterFirstFrame;
+      int? putterLastFrame;
 
       MarkerCalibrationResult? calibration;
 
@@ -784,6 +789,18 @@ class _CameraScreenState extends State<CameraScreen>
 
         if (trackedPutter != null) {
           putterTrackedFrames++;
+          putterCurrentStreak++;
+          putterFirstFrame ??= _frameAnalysisCount;
+          putterLastFrame = _frameAnalysisCount;
+
+          if (putterCurrentStreak > putterLongestStreak) {
+            putterLongestStreak = putterCurrentStreak;
+          }
+        } else {
+          if (putterCurrentStreak > 0) {
+            putterTrackingGaps++;
+          }
+          putterCurrentStreak = 0;
         }
 
         DebugLog.print(
@@ -928,7 +945,11 @@ class _CameraScreenState extends State<CameraScreen>
       debugPrint(
         'PUTTER TRACKING SUMMARY '
         'tracked=$putterTrackedFrames '
-        'total=$_frameAnalysisCount',
+        'total=$_frameAnalysisCount '
+        'longest=$putterLongestStreak '
+        'gaps=$putterTrackingGaps '
+        'first=$putterFirstFrame '
+        'last=$putterLastFrame',
       );
 
       final peak = _trackingSession.peakMetrics();
