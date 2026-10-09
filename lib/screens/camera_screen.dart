@@ -692,6 +692,7 @@ class _CameraScreenState extends State<CameraScreen>
       _trackingSession.clear();
       _frameAnalysisCount = 0;
       var putterTrackedFrames = 0;
+      var putterDetectedFrames = 0;
       var putterCurrentStreak = 0;
       var putterLongestStreak = 0;
       var putterTrackingGaps = 0;
@@ -780,6 +781,10 @@ class _CameraScreenState extends State<CameraScreen>
           frame.imageBytes,
           frameIndex: _frameAnalysisCount,
         );
+
+        if (putterCandidates.isNotEmpty) {
+          putterDetectedFrames++;
+        }
 
         final trackedPutter = _putterTracker.track(
           frameIndex: _frameAnalysisCount,
@@ -944,6 +949,7 @@ class _CameraScreenState extends State<CameraScreen>
 
       debugPrint(
         'PUTTER TRACKING SUMMARY '
+        'detected=$putterDetectedFrames '
         'tracked=$putterTrackedFrames '
         'total=$_frameAnalysisCount '
         'longest=$putterLongestStreak '
