@@ -18,9 +18,9 @@ class PerspectiveCalibration {
 
     const target = [
       [0.0, 0.0],
-      [700.0, 0.0],
-      [0.0, 237.0],
-      [700.0, 237.0],
+      [225.0, 0.0],
+      [0.0, 760.0],
+      [225.0, 760.0],
     ];
 
     final matrix = _solveHomography(source, target);

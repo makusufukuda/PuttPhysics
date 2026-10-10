@@ -7,8 +7,8 @@ import '../models/marker_candidate.dart';
 class MarkerCalibration {
   const MarkerCalibration._();
 
-  static const double horizontalMarkerDistanceMillimeters = 700.0;
-  static const double verticalMarkerDistanceMillimeters = 237.0;
+  static const double horizontalMarkerDistanceMillimeters = 225.0;
+  static const double verticalMarkerDistanceMillimeters = 760.0;
 
   static MarkerCalibrationResult? calculate(List<MarkerCandidate> markers) {
     if (markers.length != 4) {

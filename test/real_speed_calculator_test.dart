@@ -11,11 +11,11 @@ void main() {
     test('calculates real speed from perspective-corrected coordinates', () {
       const calibration = MarkerCalibrationResult(
         topScale: CalibrationScale(
-          referenceDistanceMillimeters: 700,
+          referenceDistanceMillimeters: 225,
           referenceDistancePixels: 700,
         ),
         bottomScale: CalibrationScale(
-          referenceDistanceMillimeters: 700,
+          referenceDistanceMillimeters: 225,
           referenceDistancePixels: 700,
         ),
         topDistancePixels: 700,
@@ -66,19 +66,19 @@ void main() {
       );
 
       expect(result, isNotNull);
-      expect(result!.distanceMillimeters, closeTo(100, 0.001));
-      expect(result.speedMillimetersPerSecond, closeTo(1000, 0.001));
-      expect(result.speedMetersPerSecond, closeTo(1.0, 0.001));
+      expect(result!.distanceMillimeters, closeTo(225 / 7, 0.001));
+      expect(result.speedMillimetersPerSecond, closeTo(2250 / 7, 0.001));
+      expect(result.speedMetersPerSecond, closeTo(2.25 / 7, 0.001));
     });
 
     test('corrects perspective before calculating real speed', () {
       const calibration = MarkerCalibrationResult(
         topScale: CalibrationScale(
-          referenceDistanceMillimeters: 700,
+          referenceDistanceMillimeters: 225,
           referenceDistancePixels: 500,
         ),
         bottomScale: CalibrationScale(
-          referenceDistanceMillimeters: 700,
+          referenceDistanceMillimeters: 225,
           referenceDistancePixels: 600,
         ),
         topDistancePixels: 500,
@@ -131,10 +131,10 @@ void main() {
       expect(result, isNotNull);
 
       // The two image points are the real-world top-left and top-right
-      // calibration markers, so their corrected distance must be 700 mm.
-      expect(result!.distanceMillimeters, closeTo(700, 0.001));
-      expect(result.speedMillimetersPerSecond, closeTo(7000, 0.001));
-      expect(result.speedMetersPerSecond, closeTo(7.0, 0.001));
+      // calibration markers, so their corrected distance must be 225 mm.
+      expect(result!.distanceMillimeters, closeTo(225, 0.001));
+      expect(result.speedMillimetersPerSecond, closeTo(2250, 0.001));
+      expect(result.speedMetersPerSecond, closeTo(2.25, 0.001));
     });
   });
 }

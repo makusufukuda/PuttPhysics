@@ -8,11 +8,11 @@ void main() {
   test('maps marker corners to real-world millimeters', () {
     const calibration = MarkerCalibrationResult(
       topScale: CalibrationScale(
-        referenceDistanceMillimeters: 700,
+        referenceDistanceMillimeters: 225,
         referenceDistancePixels: 500,
       ),
       bottomScale: CalibrationScale(
-        referenceDistanceMillimeters: 700,
+        referenceDistanceMillimeters: 225,
         referenceDistancePixels: 600,
       ),
       topDistancePixels: 500,
@@ -63,13 +63,13 @@ void main() {
     expect(tl!.xMillimeters, closeTo(0, 0.001));
     expect(tl.yMillimeters, closeTo(0, 0.001));
 
-    expect(tr!.xMillimeters, closeTo(700, 0.001));
+    expect(tr!.xMillimeters, closeTo(225, 0.001));
     expect(tr.yMillimeters, closeTo(0, 0.001));
 
     expect(bl!.xMillimeters, closeTo(0, 0.001));
-    expect(bl.yMillimeters, closeTo(237, 0.001));
+    expect(bl.yMillimeters, closeTo(760, 0.001));
 
-    expect(br!.xMillimeters, closeTo(700, 0.001));
-    expect(br.yMillimeters, closeTo(237, 0.001));
+    expect(br!.xMillimeters, closeTo(225, 0.001));
+    expect(br.yMillimeters, closeTo(760, 0.001));
   });
 }
