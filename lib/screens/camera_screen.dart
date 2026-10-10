@@ -10,6 +10,7 @@ import '../services/frame_extractor.dart';
 import '../services/debug_log.dart';
 import '../services/image_inspector.dart';
 import '../models/tracking_session.dart';
+import '../models/putter_tracking_session.dart';
 import '../models/marker_calibration_result.dart';
 import '../services/ball_tracker.dart';
 import '../services/blue_marker_diagnostic.dart';
@@ -86,6 +87,7 @@ class _CameraScreenState extends State<CameraScreen>
   final BallTracker _ballTracker = BallTracker();
   final PutterTracker _putterTracker = PutterTracker();
   final TrackingSession _trackingSession = TrackingSession();
+  final PutterTrackingSession _putterTrackingSession = PutterTrackingSession();
 
   int _frameAnalysisCount = 0;
 
@@ -690,6 +692,7 @@ class _CameraScreenState extends State<CameraScreen>
       _ballTracker.reset();
       _putterTracker.reset();
       _trackingSession.clear();
+      _putterTrackingSession.clear();
       _frameAnalysisCount = 0;
       var putterTrackedFrames = 0;
       var putterDetectedFrames = 0;
@@ -796,6 +799,7 @@ class _CameraScreenState extends State<CameraScreen>
         );
 
         if (trackedPutter != null) {
+          _putterTrackingSession.add(trackedPutter);
           putterTrackedFrames++;
           putterCurrentStreak++;
           putterFirstFrame ??= _frameAnalysisCount;
@@ -965,6 +969,14 @@ class _CameraScreenState extends State<CameraScreen>
         "PUTTER MISSED FRAMES "
         "count=${putterMissedFrameIndices.length} "
         "indices=$putterMissedFrameIndices",
+      );
+
+      final putterMetrics = _putterTrackingSession.latestMetrics();
+
+      debugPrint(
+        'PUTTER SPEED '
+        'tracked=${_putterTrackingSession.length} '
+        'speed=${putterMetrics?.speedPixelsPerSecond.toStringAsFixed(2) ?? "N/A"}px/s',
       );
 
       final peak = _trackingSession.peakMetrics();
