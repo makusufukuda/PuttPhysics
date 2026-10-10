@@ -693,6 +693,7 @@ class _CameraScreenState extends State<CameraScreen>
       _frameAnalysisCount = 0;
       var putterTrackedFrames = 0;
       var putterDetectedFrames = 0;
+      final putterMissedFrameIndices = <int>[];
       var putterCurrentStreak = 0;
       var putterLongestStreak = 0;
       var putterTrackingGaps = 0;
@@ -784,6 +785,8 @@ class _CameraScreenState extends State<CameraScreen>
 
         if (putterCandidates.isNotEmpty) {
           putterDetectedFrames++;
+        } else {
+          putterMissedFrameIndices.add(_frameAnalysisCount);
         }
 
         final trackedPutter = _putterTracker.track(
@@ -956,6 +959,12 @@ class _CameraScreenState extends State<CameraScreen>
         'gaps=$putterTrackingGaps '
         'first=$putterFirstFrame '
         'last=$putterLastFrame',
+      );
+
+      debugPrint(
+        "PUTTER MISSED FRAMES "
+        "count=${putterMissedFrameIndices.length} "
+        "indices=$putterMissedFrameIndices",
       );
 
       final peak = _trackingSession.peakMetrics();
