@@ -6,6 +6,7 @@ import '../models/marker_candidate.dart';
 import 'blob_analyzer.dart';
 import 'color_detector.dart';
 import 'color_mask.dart';
+import 'debug_log.dart';
 
 class MarkerDetector {
   const MarkerDetector._();
@@ -47,7 +48,7 @@ class MarkerDetector {
       blobs.where(_looksLikeMarker).toList(),
     );
 
-    debugPrint(
+    DebugLog.print(
       'MARKER DEBUG image=${image.width}x${image.height} '
       'blueBlobs=${blobs.length} markerBlobs=${markerBlobs.length}',
     );
@@ -56,7 +57,7 @@ class MarkerDetector {
       final aspectRatio = blob.width / blob.height;
       final accepted = _looksLikeMarker(blob);
 
-      debugPrint(
+      DebugLog.print(
         'MARKER BLOB DEBUG '
         'accepted=$accepted '
         'x=${blob.centroidX.toStringAsFixed(1)} '
@@ -208,7 +209,7 @@ class MarkerDetector {
             final score =
                 topYDifference + bottomYDifference + (spanDifference * 0.25);
 
-            debugPrint(
+            DebugLog.print(
               'MARKER SELECTION DEBUG '
               'points='
               '(${topLeftOrRight.centroidX.toStringAsFixed(1)},'

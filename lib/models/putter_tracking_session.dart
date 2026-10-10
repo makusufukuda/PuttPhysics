@@ -10,8 +10,7 @@ class PutterTrackingSession {
   int get length => _putters.length;
 
   void add(TrackedPutter putter) {
-    if (_putters.isNotEmpty &&
-        putter.timestamp <= _putters.last.timestamp) {
+    if (_putters.isNotEmpty && putter.timestamp <= _putters.last.timestamp) {
       return;
     }
 
@@ -20,6 +19,59 @@ class PutterTrackingSession {
 
   void clear() {
     _putters.clear();
+  }
+
+  List<PutterFrameSpeed> allFrameSpeeds() {
+    final results = <PutterFrameSpeed>[];
+
+    for (var i = 1; i < _putters.length; i++) {
+      final previous = _putters[i - 1];
+      final current = _putters[i];
+
+      if (current.frameIndex != previous.frameIndex + 1) {
+        continue;
+      }
+
+      final dt =
+          (current.timestamp - previous.timestamp).inMicroseconds /
+          Duration.microsecondsPerSecond;
+
+      if (dt <= 0 || dt > 1.0) {
+        continue;
+      }
+
+      final dx = current.centerX - previous.centerX;
+      final dy = current.centerY - previous.centerY;
+      final distance = math.sqrt(dx * dx + dy * dy);
+
+      results.add(
+        PutterFrameSpeed(
+          previousFrame: previous.frameIndex,
+          currentFrame: current.frameIndex,
+          speedPixelsPerSecond: distance / dt,
+        ),
+      );
+    }
+
+    return results;
+  }
+
+  PutterFrameSpeed? peakSpeed() {
+    final speeds = allFrameSpeeds();
+
+    if (speeds.isEmpty) {
+      return null;
+    }
+
+    var peak = speeds.first;
+
+    for (final speed in speeds.skip(1)) {
+      if (speed.speedPixelsPerSecond > peak.speedPixelsPerSecond) {
+        peak = speed;
+      }
+    }
+
+    return peak;
   }
 
   PutterSpeedMetrics? latestMetrics() {
@@ -63,5 +115,17 @@ class PutterSpeedMetrics {
 
   final double distancePixels;
   final double deltaTimeSeconds;
+  final double speedPixelsPerSecond;
+}
+
+class PutterFrameSpeed {
+  const PutterFrameSpeed({
+    required this.previousFrame,
+    required this.currentFrame,
+    required this.speedPixelsPerSecond,
+  });
+
+  final int previousFrame;
+  final int currentFrame;
   final double speedPixelsPerSecond;
 }

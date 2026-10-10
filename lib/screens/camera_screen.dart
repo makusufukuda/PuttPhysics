@@ -93,6 +93,7 @@ class _CameraScreenState extends State<CameraScreen>
 
   String? _errorMessage;
   String? _analysisResultMessage;
+  String? _putterTrackingReport;
   bool _isRecording = false;
   bool _isAnalyzingVideo = false;
 
@@ -697,6 +698,7 @@ class _CameraScreenState extends State<CameraScreen>
       var putterTrackedFrames = 0;
       var putterDetectedFrames = 0;
       final putterMissedFrameIndices = <int>[];
+      final putterTrackingFailedIndices = <int>[];
       var putterCurrentStreak = 0;
       var putterLongestStreak = 0;
       var putterTrackingGaps = 0;
@@ -797,6 +799,10 @@ class _CameraScreenState extends State<CameraScreen>
           timestamp: frame.position,
           candidates: putterCandidates,
         );
+
+        if (trackedPutter == null && putterCandidates.isNotEmpty) {
+          putterTrackingFailedIndices.add(_frameAnalysisCount);
+        }
 
         if (trackedPutter != null) {
           _putterTrackingSession.add(trackedPutter);
@@ -971,6 +977,22 @@ class _CameraScreenState extends State<CameraScreen>
         "indices=$putterMissedFrameIndices",
       );
 
+      debugPrint(
+        'PUTTER TRACKING FAILED FRAMES '
+        'count=${putterTrackingFailedIndices.length} '
+        'indices=$putterTrackingFailedIndices',
+      );
+
+      _putterTrackingReport =
+          'パター追跡結果\\n'
+          '総フレーム: $_frameAnalysisCount\\n'
+          '検出成功: $putterDetectedFrames\\n'
+          '追跡成功: $putterTrackedFrames\\n'
+          '検出失敗 (${putterMissedFrameIndices.length}): '
+          '$putterMissedFrameIndices\\n'
+          '追跡失敗 (${putterTrackingFailedIndices.length}): '
+          '$putterTrackingFailedIndices';
+
       final putterMetrics = _putterTrackingSession.latestMetrics();
 
       debugPrint(
@@ -978,6 +1000,34 @@ class _CameraScreenState extends State<CameraScreen>
         'tracked=${_putterTrackingSession.length} '
         'speed=${putterMetrics?.speedPixelsPerSecond.toStringAsFixed(2) ?? "N/A"}px/s',
       );
+
+      final putterPeak = _putterTrackingSession.peakSpeed();
+
+      debugPrint(
+        'PUTTER PEAK SPEED '
+        'previousFrame=${putterPeak?.previousFrame ?? "N/A"} '
+        'frame=${putterPeak?.currentFrame ?? "N/A"} '
+        'speed=${putterPeak?.speedPixelsPerSecond.toStringAsFixed(2) ?? "N/A"}px/s',
+      );
+
+      if (putterPeak != null) {
+        debugPrint('===== PUTTER PEAK CONTEXT =====');
+
+        final putterSpeeds = _putterTrackingSession.allFrameSpeeds();
+
+        for (final item in putterSpeeds) {
+          if ((item.currentFrame - putterPeak.currentFrame).abs() <= 5) {
+            debugPrint(
+              'PUTTER FRAME SPEED '
+              'previousFrame=${item.previousFrame} '
+              'frame=${item.currentFrame} '
+              'speed=${item.speedPixelsPerSecond.toStringAsFixed(2)}px/s',
+            );
+          }
+        }
+
+        debugPrint('===== END PUTTER PEAK CONTEXT =====');
+      }
 
       final peak = _trackingSession.peakMetrics();
       final smoothedPeak = _trackingSession.smoothedPeakMetrics();
@@ -1098,6 +1148,14 @@ class _CameraScreenState extends State<CameraScreen>
             Padding(
               padding: const EdgeInsets.all(12),
               child: Text(_analysisResultMessage!, textAlign: TextAlign.center),
+            ),
+          if (_putterTrackingReport != null)
+            SizedBox(
+              height: 180,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(12),
+                child: SelectableText(_putterTrackingReport!),
+              ),
             ),
           Expanded(
             child: VideoPlayerView(
