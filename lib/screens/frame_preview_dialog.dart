@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:image/image.dart' as img;
 
 import '../services/color_detector.dart';
+import 'marker_precision_dialog.dart';
 
 class BallCandidateViewData {
   const BallCandidateViewData({
@@ -73,6 +74,7 @@ class FramePreviewDialog extends StatefulWidget {
     required this.bestCandidateConfidence,
     required this.ballCandidates,
     required this.markers,
+    this.confirmedMarkerPositions,
   });
 
   final Uint8List imageBytes;
@@ -119,6 +121,7 @@ class FramePreviewDialog extends StatefulWidget {
   final double? bestCandidateConfidence;
   final List<BallCandidateViewData> ballCandidates;
   final List<MarkerViewData> markers;
+  final Map<String, Offset>? confirmedMarkerPositions;
 
   @override
   State<FramePreviewDialog> createState() => _FramePreviewDialogState();
@@ -126,6 +129,24 @@ class FramePreviewDialog extends StatefulWidget {
 
 class _FramePreviewDialogState extends State<FramePreviewDialog> {
   Offset? _tappedImagePosition;
+
+  // User-confirmed marker positions, stored in original image coordinates.
+  late final Map<String, Offset> _editableMarkerPositions;
+
+  // Marker currently selected for manual position correction.
+  String? _selectedMarkerPosition;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _editableMarkerPositions = {
+      for (final marker in widget.markers)
+        marker.position: Offset(marker.centerX, marker.centerY),
+      if (widget.confirmedMarkerPositions != null)
+        ...widget.confirmedMarkerPositions!,
+    };
+  }
 
   String _formatPosition(Duration value) {
     final minutes = value.inMinutes.remainder(60).toString().padLeft(2, '0');
@@ -142,6 +163,48 @@ class _FramePreviewDialogState extends State<FramePreviewDialog> {
     return '${(ratio * 100).toStringAsFixed(3)}%';
   }
 
+  Future<void> _handleImageTap(
+    Offset localPosition,
+    Size displaySize,
+  ) async {
+    if (_selectedMarkerPosition == null) {
+      _inspectTappedPixel(localPosition, displaySize);
+      return;
+    }
+
+    final markerPosition = _selectedMarkerPosition!;
+
+    final x = (localPosition.dx / displaySize.width * widget.imageWidth)
+        .clamp(0.0, widget.imageWidth.toDouble() - 1);
+    final y = (localPosition.dy / displaySize.height * widget.imageHeight)
+        .clamp(0.0, widget.imageHeight.toDouble() - 1);
+
+    final confirmedPosition = await Navigator.of(context, rootNavigator: true).push<Offset>(
+      MaterialPageRoute(
+        builder: (context) => MarkerPrecisionDialog(
+          imageBytes: widget.imageBytes,
+          imageWidth: widget.imageWidth,
+          imageHeight: widget.imageHeight,
+          initialPosition: Offset(x, y),
+        ),
+      ),
+    );
+
+    if (!mounted || confirmedPosition == null) return;
+
+    setState(() {
+      _editableMarkerPositions[markerPosition] = confirmedPosition;
+      _tappedImagePosition = confirmedPosition;
+    });
+
+    debugPrint(
+      'PRECISION MARKER CONFIRMED '
+      'marker=$markerPosition '
+      'x=${confirmedPosition.dx.toStringAsFixed(1)} '
+      'y=${confirmedPosition.dy.toStringAsFixed(1)}',
+    );
+  }
+
   void _inspectTappedPixel(Offset localPosition, Size displaySize) {
     final x = (localPosition.dx / displaySize.width * widget.imageWidth)
         .floor()
@@ -152,6 +215,9 @@ class _FramePreviewDialogState extends State<FramePreviewDialog> {
 
     setState(() {
       _tappedImagePosition = Offset(x.toDouble(), y.toDouble());
+
+      // Marker positions will be updated only after
+      // confirmation in the precision adjustment screen.
     });
 
     final image = img.decodeImage(widget.imageBytes);
@@ -259,7 +325,7 @@ class _FramePreviewDialogState extends State<FramePreviewDialog> {
                       return GestureDetector(
                         behavior: HitTestBehavior.opaque,
                         onTapDown: (details) {
-                          _inspectTappedPixel(
+                          _handleImageTap(
                             details.localPosition,
                             displaySize,
                           );
@@ -297,12 +363,22 @@ class _FramePreviewDialogState extends State<FramePreviewDialog> {
                                   confidence: widget.bestCandidateConfidence!,
                                 ),
                               ),
-                            if (widget.markers.isNotEmpty)
+                            if (_editableMarkerPositions.isNotEmpty)
                               CustomPaint(
                                 painter: _MarkerOverlayPainter(
                                   sourceWidth: widget.imageWidth,
                                   sourceHeight: widget.imageHeight,
-                                  markers: widget.markers,
+                                  markers: [
+                                    for (final entry
+                                        in _editableMarkerPositions.entries)
+                                      MarkerViewData(
+                                        centerX: entry.value.dx,
+                                        centerY: entry.value.dy,
+                                        width: 16,
+                                        height: 16,
+                                        position: entry.key,
+                                      ),
+                                  ],
                                 ),
                               ),
                             if (_tappedImagePosition != null)
@@ -321,6 +397,29 @@ class _FramePreviewDialogState extends State<FramePreviewDialog> {
                 ),
               ),
             ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              alignment: WrapAlignment.center,
+              children: [
+                for (final entry in const [
+                  ('topLeft', '左奥'),
+                  ('topRight', '右奥'),
+                  ('bottomLeft', '左手前'),
+                  ('bottomRight', '右手前'),
+                ])
+                  ChoiceChip(
+                    label: Text(entry.$2),
+                    selected: _selectedMarkerPosition == entry.$1,
+                    onSelected: (_) {
+                      setState(() {
+                        _selectedMarkerPosition = entry.$1;
+                      });
+                    },
+                  ),
+              ],
+            ),
           ],
         ),
       ),
@@ -330,6 +429,16 @@ class _FramePreviewDialogState extends State<FramePreviewDialog> {
             Navigator.of(context).pop();
           },
           child: const Text('閉じる'),
+        ),
+        FilledButton(
+          onPressed: _editableMarkerPositions.length == 4
+              ? () {
+                  Navigator.of(context).pop(
+                    Map<String, Offset>.from(_editableMarkerPositions),
+                  );
+                }
+              : null,
+          child: const Text('マーカー位置を確定'),
         ),
       ],
     );

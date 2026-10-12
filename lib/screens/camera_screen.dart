@@ -83,6 +83,7 @@ class _CameraScreenState extends State<CameraScreen>
   Future<void>? _initializeCameraFuture;
   VideoPlayerController? _videoPlayerController;
   String? _recordedVideoPath;
+  Map<String, Offset>? _confirmedMarkerPositions;
 
   final BallTracker _ballTracker = BallTracker();
   final PutterTracker _putterTracker = PutterTracker();
@@ -564,7 +565,7 @@ class _CameraScreenState extends State<CameraScreen>
       }
       final largestBlob = imageInfo.largestBlob;
       final bestBallCandidate = imageInfo.bestBallCandidate;
-      await showDialog<void>(
+      final confirmedMarkers = await showDialog<Map<String, Offset>>(
         context: context,
         builder: (context) {
           return FramePreviewDialog(
@@ -611,6 +612,7 @@ class _CameraScreenState extends State<CameraScreen>
             bestCandidateCenterY: bestBallCandidate?.centerY,
             bestCandidateRadius: bestBallCandidate?.radius,
             bestCandidateConfidence: bestBallCandidate?.confidence,
+            confirmedMarkerPositions: _confirmedMarkerPositions,
             markers: markers
                 .map(
                   (marker) => MarkerViewData(
@@ -625,6 +627,19 @@ class _CameraScreenState extends State<CameraScreen>
           );
         },
       );
+
+      if (confirmedMarkers != null) {
+        _confirmedMarkerPositions = Map<String, Offset>.from(
+          confirmedMarkers,
+        );
+        debugPrint('CONFIRMED MARKERS count=${confirmedMarkers.length}');
+        for (final entry in confirmedMarkers.entries) {
+          debugPrint(
+            'CONFIRMED MARKER ${entry.key} '
+            'x=${entry.value.dx} y=${entry.value.dy}',
+          );
+        }
+      }
     } catch (error) {
       _showMessage('フレーム画像の取得中にエラーが発生しました。\n$error');
     }
