@@ -12,6 +12,7 @@ import '../services/image_inspector.dart';
 import '../models/tracking_session.dart';
 import '../models/putter_tracking_session.dart';
 import '../models/marker_calibration_result.dart';
+import '../models/marker_candidate.dart';
 import '../services/ball_tracker.dart';
 import '../services/blue_marker_diagnostic.dart';
 import '../services/green_marker_diagnostic.dart';
@@ -565,6 +566,12 @@ class _CameraScreenState extends State<CameraScreen>
       }
       final largestBlob = imageInfo.largestBlob;
       final bestBallCandidate = imageInfo.bestBallCandidate;
+      debugPrint(
+        'PREVIEW SAVED MARKERS '
+        'count=${_confirmedMarkerPositions?.length ?? 0} '
+        'positions=$_confirmedMarkerPositions',
+      );
+
       final confirmedMarkers = await showDialog<Map<String, Offset>>(
         context: context,
         builder: (context) {
@@ -629,9 +636,7 @@ class _CameraScreenState extends State<CameraScreen>
       );
 
       if (confirmedMarkers != null) {
-        _confirmedMarkerPositions = Map<String, Offset>.from(
-          confirmedMarkers,
-        );
+        _confirmedMarkerPositions = Map<String, Offset>.from(confirmedMarkers);
         debugPrint('CONFIRMED MARKERS count=${confirmedMarkers.length}');
         for (final entry in confirmedMarkers.entries) {
           debugPrint(
@@ -738,7 +743,29 @@ class _CameraScreenState extends State<CameraScreen>
         }
 
         if (_frameAnalysisCount == 0) {
-          final markers = MarkerDetector.detect(frame.imageBytes);
+          final saved = _confirmedMarkerPositions;
+          final markerPositions = MarkerPosition.values;
+
+          final markers =
+              saved != null &&
+                  markerPositions.every((p) => saved.containsKey(p.name))
+              ? [
+                  for (final position in markerPositions)
+                    MarkerCandidate(
+                      position: position,
+                      centerX: saved[position.name]!.dx,
+                      centerY: saved[position.name]!.dy,
+                      width: 1,
+                      height: 1,
+                      pixelCount: 1,
+                    ),
+                ]
+              : MarkerDetector.detect(frame.imageBytes);
+
+          debugPrint(
+            'CALIBRATION MARKER SOURCE '
+            '${saved != null && markerPositions.every((p) => saved.containsKey(p.name)) ? "manual" : "automatic"}',
+          );
 
           debugPrint('MARKER DETECTION count=${markers.length}');
 

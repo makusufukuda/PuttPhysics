@@ -5,7 +5,7 @@ class DebugLog {
 
   // 実グリーン計測時は false。
   // 詳細な解析ログを調査するときだけ true にする。
-  static const bool verbose = false;
+  static const bool verbose = true;
 
   static void print(String message) {
     if (verbose) {
