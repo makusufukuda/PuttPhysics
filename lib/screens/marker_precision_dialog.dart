@@ -9,16 +9,17 @@ class MarkerPrecisionDialog extends StatefulWidget {
     required this.imageWidth,
     required this.imageHeight,
     required this.initialPosition,
+    this.title = 'マーカー中心の精密調整',
   });
 
   final Uint8List imageBytes;
   final int imageWidth;
   final int imageHeight;
   final Offset initialPosition;
+  final String title;
 
   @override
-  State<MarkerPrecisionDialog> createState() =>
-      _MarkerPrecisionDialogState();
+  State<MarkerPrecisionDialog> createState() => _MarkerPrecisionDialogState();
 }
 
 class _MarkerPrecisionDialogState extends State<MarkerPrecisionDialog> {
@@ -35,11 +36,11 @@ class _MarkerPrecisionDialogState extends State<MarkerPrecisionDialog> {
     setState(() {
       _position = Offset(
         (_position.dx -
-                details.delta.dx * widget.imageWidth /
-                    (viewport.width * _zoom))
+                details.delta.dx * widget.imageWidth / (viewport.width * _zoom))
             .clamp(0.0, widget.imageWidth.toDouble() - 1),
         (_position.dy -
-                details.delta.dy * widget.imageHeight /
+                details.delta.dy *
+                    widget.imageHeight /
                     (viewport.height * _zoom))
             .clamp(0.0, widget.imageHeight.toDouble() - 1),
       );
@@ -49,7 +50,7 @@ class _MarkerPrecisionDialogState extends State<MarkerPrecisionDialog> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('マーカー中心の精密調整')),
+      appBar: AppBar(title: Text(widget.title)),
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -65,18 +66,19 @@ class _MarkerPrecisionDialogState extends State<MarkerPrecisionDialog> {
                   height: viewport.height,
                   child: GestureDetector(
                     behavior: HitTestBehavior.opaque,
-                    onPanUpdate: (details) =>
-                        _moveImage(details, viewport),
+                    onPanUpdate: (details) => _moveImage(details, viewport),
                     child: ClipRect(
                       child: Stack(
                         children: [
                           Positioned(
-                            left: viewport.width / 2 -
+                            left:
+                                viewport.width / 2 -
                                 _position.dx *
                                     viewport.width *
                                     _zoom /
                                     widget.imageWidth,
-                            top: viewport.height / 2 -
+                            top:
+                                viewport.height / 2 -
                                 _position.dy *
                                     viewport.height *
                                     _zoom /
@@ -107,8 +109,7 @@ class _MarkerPrecisionDialogState extends State<MarkerPrecisionDialog> {
                 ),
                 const SizedBox(height: 8),
                 FilledButton(
-                  onPressed: () =>
-                      Navigator.of(context).pop(_position),
+                  onPressed: () => Navigator.of(context).pop(_position),
                   child: const Text('この位置で確定'),
                 ),
               ],
@@ -133,16 +134,8 @@ class _PrecisionCrosshairPainter extends CustomPainter {
       Offset(center.dx, size.height),
       paint,
     );
-    canvas.drawLine(
-      Offset(0, center.dy),
-      Offset(size.width, center.dy),
-      paint,
-    );
-    canvas.drawCircle(
-      center,
-      10,
-      paint..style = PaintingStyle.stroke,
-    );
+    canvas.drawLine(Offset(0, center.dy), Offset(size.width, center.dy), paint);
+    canvas.drawCircle(center, 10, paint..style = PaintingStyle.stroke);
   }
 
   @override

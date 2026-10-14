@@ -36,6 +36,16 @@ class MarkerViewData {
   final String position;
 }
 
+class FrameSetupResult {
+  const FrameSetupResult({
+    required this.markerPositions,
+    required this.ballPosition,
+  });
+
+  final Map<String, Offset> markerPositions;
+  final Offset? ballPosition;
+}
+
 class FramePreviewDialog extends StatefulWidget {
   const FramePreviewDialog({
     super.key,
@@ -130,6 +140,12 @@ class FramePreviewDialog extends StatefulWidget {
 class _FramePreviewDialogState extends State<FramePreviewDialog> {
   Offset? _tappedImagePosition;
 
+  // Ball center confirmed by the user, in original image coordinates.
+  Offset? _editableBallPosition;
+
+  // True only after the user confirms the ball center.
+  bool _isBallPositionConfirmed = false;
+
   // User-confirmed marker positions, stored in original image coordinates.
   late final Map<String, Offset> _editableMarkerPositions;
 
@@ -139,6 +155,16 @@ class _FramePreviewDialogState extends State<FramePreviewDialog> {
   @override
   void initState() {
     super.initState();
+
+    // Automatic detection is only a starting point.
+    // The user must confirm the ball position separately.
+    if (widget.bestCandidateCenterX != null &&
+        widget.bestCandidateCenterY != null) {
+      _editableBallPosition = Offset(
+        widget.bestCandidateCenterX!,
+        widget.bestCandidateCenterY!,
+      );
+    }
 
     _editableMarkerPositions = {
       for (final marker in widget.markers)
@@ -163,10 +189,7 @@ class _FramePreviewDialogState extends State<FramePreviewDialog> {
     return '${(ratio * 100).toStringAsFixed(3)}%';
   }
 
-  Future<void> _handleImageTap(
-    Offset localPosition,
-    Size displaySize,
-  ) async {
+  Future<void> _handleImageTap(Offset localPosition, Size displaySize) async {
     if (_selectedMarkerPosition == null) {
       _inspectTappedPixel(localPosition, displaySize);
       return;
@@ -174,21 +197,24 @@ class _FramePreviewDialogState extends State<FramePreviewDialog> {
 
     final markerPosition = _selectedMarkerPosition!;
 
-    final x = (localPosition.dx / displaySize.width * widget.imageWidth)
-        .clamp(0.0, widget.imageWidth.toDouble() - 1);
+    final x = (localPosition.dx / displaySize.width * widget.imageWidth).clamp(
+      0.0,
+      widget.imageWidth.toDouble() - 1,
+    );
     final y = (localPosition.dy / displaySize.height * widget.imageHeight)
         .clamp(0.0, widget.imageHeight.toDouble() - 1);
 
-    final confirmedPosition = await Navigator.of(context, rootNavigator: true).push<Offset>(
-      MaterialPageRoute(
-        builder: (context) => MarkerPrecisionDialog(
-          imageBytes: widget.imageBytes,
-          imageWidth: widget.imageWidth,
-          imageHeight: widget.imageHeight,
-          initialPosition: Offset(x, y),
-        ),
-      ),
-    );
+    final confirmedPosition = await Navigator.of(context, rootNavigator: true)
+        .push<Offset>(
+          MaterialPageRoute(
+            builder: (context) => MarkerPrecisionDialog(
+              imageBytes: widget.imageBytes,
+              imageWidth: widget.imageWidth,
+              imageHeight: widget.imageHeight,
+              initialPosition: Offset(x, y),
+            ),
+          ),
+        );
 
     if (!mounted || confirmedPosition == null) return;
 
@@ -200,6 +226,40 @@ class _FramePreviewDialogState extends State<FramePreviewDialog> {
     debugPrint(
       'PRECISION MARKER CONFIRMED '
       'marker=$markerPosition '
+      'x=${confirmedPosition.dx.toStringAsFixed(1)} '
+      'y=${confirmedPosition.dy.toStringAsFixed(1)}',
+    );
+  }
+
+  Future<void> _confirmBallPosition() async {
+    final initialPosition =
+        _editableBallPosition ??
+        Offset(widget.imageWidth / 2, widget.imageHeight / 2);
+
+    final confirmedPosition = await Navigator.of(context, rootNavigator: true)
+        .push<Offset>(
+          MaterialPageRoute(
+            builder: (context) => MarkerPrecisionDialog(
+              imageBytes: widget.imageBytes,
+              imageWidth: widget.imageWidth,
+              imageHeight: widget.imageHeight,
+              initialPosition: initialPosition,
+              title: 'ボール中心の精密調整',
+            ),
+          ),
+        );
+
+    if (!mounted || confirmedPosition == null) return;
+
+    setState(() {
+      _editableBallPosition = confirmedPosition;
+      _isBallPositionConfirmed = true;
+      _selectedMarkerPosition = null;
+      _tappedImagePosition = confirmedPosition;
+    });
+
+    debugPrint(
+      'PRECISION BALL CONFIRMED '
       'x=${confirmedPosition.dx.toStringAsFixed(1)} '
       'y=${confirmedPosition.dy.toStringAsFixed(1)}',
     );
@@ -325,10 +385,7 @@ class _FramePreviewDialogState extends State<FramePreviewDialog> {
                       return GestureDetector(
                         behavior: HitTestBehavior.opaque,
                         onTapDown: (details) {
-                          _handleImageTap(
-                            details.localPosition,
-                            displaySize,
-                          );
+                          _handleImageTap(details.localPosition, displaySize);
                         },
                         child: Stack(
                           fit: StackFit.expand,
@@ -398,27 +455,44 @@ class _FramePreviewDialogState extends State<FramePreviewDialog> {
               ),
             ),
             const SizedBox(height: 8),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              alignment: WrapAlignment.center,
+            Column(
               children: [
-                for (final entry in const [
-                  ('topLeft', '左奥'),
-                  ('topRight', '右奥'),
-                  ('bottomLeft', '左手前'),
-                  ('bottomRight', '右手前'),
+                for (final row in const [
+                  [('topLeft', '左奥（赤）'), ('topRight', '右奥（青）')],
+                  [('bottomLeft', '左手前（緑）'), ('bottomRight', '右手前（オレンジ）')],
                 ])
-                  ChoiceChip(
-                    label: Text(entry.$2),
-                    selected: _selectedMarkerPosition == entry.$1,
-                    onSelected: (_) {
-                      setState(() {
-                        _selectedMarkerPosition = entry.$1;
-                      });
-                    },
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      for (final entry in row)
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.all(3),
+                            child: ChoiceChip(
+                              label: Text(
+                                entry.$2,
+                                style: const TextStyle(fontSize: 11),
+                              ),
+                              selected: _selectedMarkerPosition == entry.$1,
+                              onSelected: (_) {
+                                setState(() {
+                                  _selectedMarkerPosition = entry.$1;
+                                });
+                              },
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
               ],
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: _editableMarkerPositions.length == 4
+                  ? _confirmBallPosition
+                  : null,
+              icon: const Icon(Icons.adjust),
+              label: const Text('ボール位置を確認'),
             ),
           ],
         ),
@@ -434,7 +508,14 @@ class _FramePreviewDialogState extends State<FramePreviewDialog> {
           onPressed: _editableMarkerPositions.length == 4
               ? () {
                   Navigator.of(context).pop(
-                    Map<String, Offset>.from(_editableMarkerPositions),
+                    FrameSetupResult(
+                      markerPositions: Map<String, Offset>.from(
+                        _editableMarkerPositions,
+                      ),
+                      ballPosition: _isBallPositionConfirmed
+                          ? _editableBallPosition
+                          : null,
+                    ),
                   );
                 }
               : null,

@@ -86,6 +86,9 @@ class _CameraScreenState extends State<CameraScreen>
   String? _recordedVideoPath;
   Map<String, Offset>? _confirmedMarkerPositions;
 
+  // User-confirmed initial ball position in image coordinates.
+  Offset? _confirmedBallPosition;
+
   final BallTracker _ballTracker = BallTracker();
   final PutterTracker _putterTracker = PutterTracker();
   final TrackingSession _trackingSession = TrackingSession();
@@ -572,7 +575,7 @@ class _CameraScreenState extends State<CameraScreen>
         'positions=$_confirmedMarkerPositions',
       );
 
-      final confirmedMarkers = await showDialog<Map<String, Offset>>(
+      final confirmedSetup = await showDialog<FrameSetupResult>(
         context: context,
         builder: (context) {
           return FramePreviewDialog(
@@ -635,14 +638,27 @@ class _CameraScreenState extends State<CameraScreen>
         },
       );
 
-      if (confirmedMarkers != null) {
+      if (confirmedSetup != null) {
+        final confirmedMarkers = confirmedSetup.markerPositions;
         _confirmedMarkerPositions = Map<String, Offset>.from(confirmedMarkers);
+        _confirmedBallPosition = confirmedSetup.ballPosition;
+
         debugPrint('CONFIRMED MARKERS count=${confirmedMarkers.length}');
         for (final entry in confirmedMarkers.entries) {
           debugPrint(
             'CONFIRMED MARKER ${entry.key} '
             'x=${entry.value.dx} y=${entry.value.dy}',
           );
+        }
+
+        if (_confirmedBallPosition != null) {
+          debugPrint(
+            'CONFIRMED BALL '
+            'x=${_confirmedBallPosition!.dx.toStringAsFixed(1)} '
+            'y=${_confirmedBallPosition!.dy.toStringAsFixed(1)}',
+          );
+        } else {
+          debugPrint('BALL POSITION NOT CONFIRMED');
         }
       }
     } catch (error) {
@@ -927,6 +943,21 @@ class _CameraScreenState extends State<CameraScreen>
           continue;
         }
 
+        if (_trackingSession.length == 0 && _confirmedBallPosition != null) {
+          final dx = trackedBall.centerX - _confirmedBallPosition!.dx;
+          final dy = trackedBall.centerY - _confirmedBallPosition!.dy;
+          final distance = Offset(dx, dy).distance;
+
+          DebugLog.print(
+            'INITIAL BALL POSITION CHECK '
+            'confirmedX=${_confirmedBallPosition!.dx.toStringAsFixed(1)} '
+            'confirmedY=${_confirmedBallPosition!.dy.toStringAsFixed(1)} '
+            'trackedX=${trackedBall.centerX.toStringAsFixed(1)} '
+            'trackedY=${trackedBall.centerY.toStringAsFixed(1)} '
+            'distance=${distance.toStringAsFixed(1)}px',
+          );
+        }
+
         _trackingSession.add(trackedBall);
 
         final metrics = _trackingSession.latestMetrics();
@@ -962,7 +993,9 @@ class _CameraScreenState extends State<CameraScreen>
             'speed=${metrics.speedPixelsPerSecond.toStringAsFixed(2)}px/s',
           );
 
-          if (calibration != null && _trackingSession.length >= 2) {
+          if (calibration != null &&
+              _confirmedBallPosition != null &&
+              _trackingSession.length >= 2) {
             final previousBall =
                 _trackingSession.balls[_trackingSession.length - 2];
 
@@ -1076,7 +1109,9 @@ class _CameraScreenState extends State<CameraScreen>
 
       RealSpeedResult? smoothedRealSpeed;
 
-      if (calibration != null && smoothedPeak != null) {
+      if (calibration != null &&
+          _confirmedBallPosition != null &&
+          smoothedPeak != null) {
         smoothedRealSpeed = RealSpeedCalculator.calculate(
           calibration: calibration,
           previous: smoothedPeak.previous,
