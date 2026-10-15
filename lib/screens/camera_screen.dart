@@ -327,6 +327,28 @@ class _CameraScreenState extends State<CameraScreen>
     }
   }
 
+  Future<void> _captureInitialSetupImage() async {
+    final camera = _cameraController;
+    if (camera == null || !camera.value.isInitialized || _isRecording) {
+      _showMessage("カメラの準備ができていません。");
+      return;
+    }
+    try {
+      final photo = await camera.takePicture();
+      final bytes = await photo.readAsBytes();
+      debugPrint("INITIAL SETUP IMAGE bytes=${bytes.length}");
+      final imageInfo = ImageInspector.inspect(bytes);
+      debugPrint("INITIAL SETUP INSPECT width=${imageInfo?.width} height=${imageInfo?.height} ballCandidates=${imageInfo?.ballCandidateCount}");
+      final markers = MarkerDetector.detect(bytes);
+      debugPrint("INITIAL SETUP MARKERS count=${markers.length}");
+      if (imageInfo == null || !mounted) return;
+      await _showInitialSetupDialog(bytes, Duration.zero, imageInfo, markers);
+      _showMessage("初期設定用の画像を取得しました。");
+    } catch (error) {
+      _showMessage("初期設定用の画像取得に失敗しました。\n$error");
+    }
+  }
+
   Future<void> _startRecording() async {
     final controller = _cameraController;
 
@@ -567,6 +589,13 @@ class _CameraScreenState extends State<CameraScreen>
           'conf=${(trackedBall.confidence * 100).toStringAsFixed(1)}%',
         );
       }
+      await _showInitialSetupDialog(imageBytes, actualPosition, imageInfo, markers);
+    } catch (error) {
+      _showMessage('フレーム画像の取得中にエラーが発生しました。\n$error');
+    }
+  }
+
+  Future<void> _showInitialSetupDialog(Uint8List imageBytes, Duration actualPosition, dynamic imageInfo, List<MarkerCandidate> markers) async {
       final largestBlob = imageInfo.largestBlob;
       final bestBallCandidate = imageInfo.bestBallCandidate;
       debugPrint(
@@ -661,9 +690,6 @@ class _CameraScreenState extends State<CameraScreen>
           debugPrint('BALL POSITION NOT CONFIRMED');
         }
       }
-    } catch (error) {
-      _showMessage('フレーム画像の取得中にエラーが発生しました。\n$error');
-    }
   }
 
   void _showMessage(String message) {
@@ -1233,6 +1259,12 @@ class _CameraScreenState extends State<CameraScreen>
                 padding: const EdgeInsets.all(12),
                 child: SelectableText(_putterTrackingReport!),
               ),
+            ),
+          if (_videoPlayerController == null)
+            ElevatedButton.icon(
+              onPressed: _captureInitialSetupImage,
+              icon: const Icon(Icons.tune),
+              label: const Text("初期設定"),
             ),
           Expanded(
             child: VideoPlayerView(
