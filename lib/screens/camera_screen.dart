@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show MethodChannel, PlatformException;
+import 'package:image_picker/image_picker.dart';
 import 'package:video_player/video_player.dart';
 
 import '../services/frame_extractor.dart';
@@ -338,7 +339,9 @@ class _CameraScreenState extends State<CameraScreen>
       final bytes = await photo.readAsBytes();
       debugPrint("INITIAL SETUP IMAGE bytes=${bytes.length}");
       final imageInfo = ImageInspector.inspect(bytes);
-      debugPrint("INITIAL SETUP INSPECT width=${imageInfo?.width} height=${imageInfo?.height} ballCandidates=${imageInfo?.ballCandidateCount}");
+      debugPrint(
+        "INITIAL SETUP INSPECT width=${imageInfo?.width} height=${imageInfo?.height} ballCandidates=${imageInfo?.ballCandidateCount}",
+      );
       final markers = MarkerDetector.detect(bytes);
       debugPrint("INITIAL SETUP MARKERS count=${markers.length}");
       if (imageInfo == null || !mounted) return;
@@ -404,6 +407,39 @@ class _CameraScreenState extends State<CameraScreen>
         '録画を停止できませんでした。\n'
         '${error.code}: ${error.description ?? ''}',
       );
+    }
+  }
+
+  Future<void> _selectVideo() async {
+    if (_isRecording || _isAnalyzingVideo) {
+      return;
+    }
+
+    try {
+      final video = await ImagePicker().pickVideo(source: ImageSource.gallery);
+
+      if (video == null || !mounted) {
+        return;
+      }
+
+      await _initializeVideoPlayer(video);
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _recordedVideoPath = video.path;
+        _analysisResultMessage = null;
+        _putterTrackingReport = null;
+      });
+
+      _showMessage('動画を読み込みました。');
+    } catch (error) {
+      debugPrint('VIDEO PICK ERROR $error');
+      if (mounted) {
+        _showMessage('動画を読み込めませんでした: $error');
+      }
     }
   }
 
@@ -589,107 +625,117 @@ class _CameraScreenState extends State<CameraScreen>
           'conf=${(trackedBall.confidence * 100).toStringAsFixed(1)}%',
         );
       }
-      await _showInitialSetupDialog(imageBytes, actualPosition, imageInfo, markers);
+      await _showInitialSetupDialog(
+        imageBytes,
+        actualPosition,
+        imageInfo,
+        markers,
+      );
     } catch (error) {
       _showMessage('フレーム画像の取得中にエラーが発生しました。\n$error');
     }
   }
 
-  Future<void> _showInitialSetupDialog(Uint8List imageBytes, Duration actualPosition, dynamic imageInfo, List<MarkerCandidate> markers) async {
-      final largestBlob = imageInfo.largestBlob;
-      final bestBallCandidate = imageInfo.bestBallCandidate;
-      debugPrint(
-        'PREVIEW SAVED MARKERS '
-        'count=${_confirmedMarkerPositions?.length ?? 0} '
-        'positions=$_confirmedMarkerPositions',
-      );
+  Future<void> _showInitialSetupDialog(
+    Uint8List imageBytes,
+    Duration actualPosition,
+    dynamic imageInfo,
+    List<MarkerCandidate> markers,
+  ) async {
+    final largestBlob = imageInfo.largestBlob;
+    final bestBallCandidate = imageInfo.bestBallCandidate;
+    debugPrint(
+      'PREVIEW SAVED MARKERS '
+      'count=${_confirmedMarkerPositions?.length ?? 0} '
+      'positions=$_confirmedMarkerPositions',
+    );
 
-      final confirmedSetup = await showDialog<FrameSetupResult>(
-        context: context,
-        builder: (context) {
-          return FramePreviewDialog(
-            imageBytes: imageBytes,
-            position: actualPosition,
-            imageWidth: imageInfo.width,
-            imageHeight: imageInfo.height,
-            centerX: imageInfo.centerX,
-            centerY: imageInfo.centerY,
-            centerRed: imageInfo.centerRed,
-            centerGreen: imageInfo.centerGreen,
-            centerBlue: imageInfo.centerBlue,
-            centerHue: imageInfo.centerHue,
-            centerSaturation: imageInfo.centerSaturation,
-            centerValue: imageInfo.centerValue,
-            centerIsYellow: imageInfo.centerIsYellow,
-            centerIsRed: imageInfo.centerIsRed,
-            totalPixels: imageInfo.totalPixels,
-            yellowPixels: imageInfo.yellowPixels,
-            redPixels: imageInfo.redPixels,
-            targetColorPixels: imageInfo.targetColorPixels,
-            yellowRatio: imageInfo.yellowRatio,
-            redRatio: imageInfo.redRatio,
-            blobCount: imageInfo.blobCount,
-            largestBlobPixelCount: largestBlob?.pixelCount,
-            largestBlobCentroidX: largestBlob?.centroidX,
-            largestBlobCentroidY: largestBlob?.centroidY,
-            largestBlobMinX: largestBlob?.minX,
-            largestBlobMinY: largestBlob?.minY,
-            largestBlobWidth: largestBlob?.width,
-            largestBlobHeight: largestBlob?.height,
-            ballCandidateCount: imageInfo.ballCandidateCount,
-            ballCandidates: imageInfo.ballCandidates
-                .map(
-                  (candidate) => BallCandidateViewData(
-                    centerX: candidate.centerX,
-                    centerY: candidate.centerY,
-                    radius: candidate.radius,
-                    confidence: candidate.confidence,
-                  ),
-                )
-                .toList(),
-            bestCandidateCenterX: bestBallCandidate?.centerX,
-            bestCandidateCenterY: bestBallCandidate?.centerY,
-            bestCandidateRadius: bestBallCandidate?.radius,
-            bestCandidateConfidence: bestBallCandidate?.confidence,
-            confirmedMarkerPositions: _confirmedMarkerPositions,
-            markers: markers
-                .map(
-                  (marker) => MarkerViewData(
-                    centerX: marker.centerX,
-                    centerY: marker.centerY,
-                    width: marker.width,
-                    height: marker.height,
-                    position: marker.position.name,
-                  ),
-                )
-                .toList(),
-          );
-        },
-      );
+    final confirmedSetup = await showDialog<FrameSetupResult>(
+      context: context,
+      builder: (context) {
+        return FramePreviewDialog(
+          imageBytes: imageBytes,
+          position: actualPosition,
+          imageWidth: imageInfo.width,
+          imageHeight: imageInfo.height,
+          centerX: imageInfo.centerX,
+          centerY: imageInfo.centerY,
+          centerRed: imageInfo.centerRed,
+          centerGreen: imageInfo.centerGreen,
+          centerBlue: imageInfo.centerBlue,
+          centerHue: imageInfo.centerHue,
+          centerSaturation: imageInfo.centerSaturation,
+          centerValue: imageInfo.centerValue,
+          centerIsYellow: imageInfo.centerIsYellow,
+          centerIsRed: imageInfo.centerIsRed,
+          totalPixels: imageInfo.totalPixels,
+          yellowPixels: imageInfo.yellowPixels,
+          redPixels: imageInfo.redPixels,
+          targetColorPixels: imageInfo.targetColorPixels,
+          yellowRatio: imageInfo.yellowRatio,
+          redRatio: imageInfo.redRatio,
+          blobCount: imageInfo.blobCount,
+          largestBlobPixelCount: largestBlob?.pixelCount,
+          largestBlobCentroidX: largestBlob?.centroidX,
+          largestBlobCentroidY: largestBlob?.centroidY,
+          largestBlobMinX: largestBlob?.minX,
+          largestBlobMinY: largestBlob?.minY,
+          largestBlobWidth: largestBlob?.width,
+          largestBlobHeight: largestBlob?.height,
+          ballCandidateCount: imageInfo.ballCandidateCount,
+          ballCandidates: imageInfo.ballCandidates
+              .map(
+                (candidate) => BallCandidateViewData(
+                  centerX: candidate.centerX,
+                  centerY: candidate.centerY,
+                  radius: candidate.radius,
+                  confidence: candidate.confidence,
+                ),
+              )
+              .toList(),
+          bestCandidateCenterX: bestBallCandidate?.centerX,
+          bestCandidateCenterY: bestBallCandidate?.centerY,
+          bestCandidateRadius: bestBallCandidate?.radius,
+          bestCandidateConfidence: bestBallCandidate?.confidence,
+          confirmedMarkerPositions: _confirmedMarkerPositions,
+          markers: markers
+              .map(
+                (marker) => MarkerViewData(
+                  centerX: marker.centerX,
+                  centerY: marker.centerY,
+                  width: marker.width,
+                  height: marker.height,
+                  position: marker.position.name,
+                ),
+              )
+              .toList(),
+        );
+      },
+    );
 
-      if (confirmedSetup != null) {
-        final confirmedMarkers = confirmedSetup.markerPositions;
-        _confirmedMarkerPositions = Map<String, Offset>.from(confirmedMarkers);
-        _confirmedBallPosition = confirmedSetup.ballPosition;
+    if (confirmedSetup != null) {
+      final confirmedMarkers = confirmedSetup.markerPositions;
+      _confirmedMarkerPositions = Map<String, Offset>.from(confirmedMarkers);
+      _confirmedBallPosition = confirmedSetup.ballPosition;
 
-        debugPrint('CONFIRMED MARKERS count=${confirmedMarkers.length}');
-        for (final entry in confirmedMarkers.entries) {
-          debugPrint(
-            'CONFIRMED MARKER ${entry.key} '
-            'x=${entry.value.dx} y=${entry.value.dy}',
-          );
-        }
-
-        if (_confirmedBallPosition != null) {
-          debugPrint(
-            'CONFIRMED BALL '
-            'x=${_confirmedBallPosition!.dx.toStringAsFixed(1)} '
-            'y=${_confirmedBallPosition!.dy.toStringAsFixed(1)}',
-          );
-        } else {
-          debugPrint('BALL POSITION NOT CONFIRMED');
-        }
+      debugPrint('CONFIRMED MARKERS count=${confirmedMarkers.length}');
+      for (final entry in confirmedMarkers.entries) {
+        debugPrint(
+          'CONFIRMED MARKER ${entry.key} '
+          'x=${entry.value.dx} y=${entry.value.dy}',
+        );
       }
+
+      if (_confirmedBallPosition != null) {
+        debugPrint(
+          'CONFIRMED BALL '
+          'x=${_confirmedBallPosition!.dx.toStringAsFixed(1)} '
+          'y=${_confirmedBallPosition!.dy.toStringAsFixed(1)}',
+        );
+      } else {
+        debugPrint('BALL POSITION NOT CONFIRMED');
+      }
+    }
   }
 
   void _showMessage(String message) {
@@ -1266,6 +1312,13 @@ class _CameraScreenState extends State<CameraScreen>
               icon: const Icon(Icons.tune),
               label: const Text("初期設定"),
             ),
+          ElevatedButton.icon(
+            onPressed: (_isRecording || _isAnalyzingVideo)
+                ? null
+                : _selectVideo,
+            icon: const Icon(Icons.video_library),
+            label: const Text("動画を選択"),
+          ),
           Expanded(
             child: VideoPlayerView(
               cameraController: _cameraController,

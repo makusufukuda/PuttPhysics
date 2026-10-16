@@ -68,5 +68,7 @@
 	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>パターの動画を撮影して解析するためにカメラを使用します。</string>
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>過去に撮影したパターの動画を選択して解析するために写真ライブラリを使用します。</string>
 </dict>
 </plist>
