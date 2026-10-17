@@ -546,6 +546,15 @@ final class NativeFrameExtractor {
                     return
                 }
 
+                let transform = track.preferredTransform
+                print(
+                    "FRAME ROTATION DEBUG " +
+                    "a=\(transform.a) b=\(transform.b) " +
+                    "c=\(transform.c) d=\(transform.d) " +
+                    "tx=\(transform.tx) ty=\(transform.ty) " +
+                    "naturalSize=\(track.naturalSize)"
+                )
+
                 let reader = try AVAssetReader(asset: asset)
 
                 let output = AVAssetReaderTrackOutput(
@@ -625,13 +634,25 @@ final class NativeFrameExtractor {
                         let ciImage = CIImage(
                             cvPixelBuffer: imageBuffer
                         )
+                        let rotatedImage = ciImage
+                            .transformed(by: track.preferredTransform)
+                            .transformed(
+                                by: CGAffineTransform(rotationAngle: .pi)
+                            )
+                        let bounds = rotatedImage.extent
+                        let orientedImage = rotatedImage.transformed(
+                            by: CGAffineTransform(
+                                translationX: -bounds.minX,
+                                y: -bounds.minY
+                            )
+                        )
 
                         let context = CIContext()
 
                         guard
                             let cgImage = context.createCGImage(
-                                ciImage,
-                                from: ciImage.extent
+                                orientedImage,
+                                from: orientedImage.extent
                             )
                         else {
                             await MainActor.run {

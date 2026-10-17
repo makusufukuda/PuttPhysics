@@ -844,6 +844,8 @@ class _CameraScreenState extends State<CameraScreen>
 
       final duration = videoController.value.duration;
 
+      final analysisStopwatch = Stopwatch()..start();
+
       await for (final frame in FrameExtractor.extractFrames(
         videoPath: videoPath,
         duration: duration,
@@ -1127,6 +1129,14 @@ class _CameraScreenState extends State<CameraScreen>
           );
         }
       }
+
+      analysisStopwatch.stop();
+      debugPrint(
+        'VIDEO ANALYSIS TIMING '
+        'frames=$_frameAnalysisCount '
+        'elapsedMs=${analysisStopwatch.elapsedMilliseconds} '
+        'elapsedSeconds=${(analysisStopwatch.elapsedMilliseconds / 1000).toStringAsFixed(2)}',
+      );
 
       DebugLog.print(
         'AutoTracking finished '
