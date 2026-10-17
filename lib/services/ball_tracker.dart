@@ -396,6 +396,12 @@ class BallTracker {
         }
       }
 
+      if (candidate.isMotionBlur &&
+          predictionScore >= minimumPredictionScoreForExtendedMovement &&
+          maximumHighSpeedRadiusChangeRatio > radiusChangeLimit) {
+        radiusChangeLimit = maximumHighSpeedRadiusChangeRatio;
+      }
+
       if (radiusChangeRatio > radiusChangeLimit) {
         DebugLog.print(
           'TRACKER REJECT '

@@ -832,6 +832,64 @@ void main() {
       expect(tracker.missedFrameCount, 0);
     });
 
+    test('rejects false motion blur jump at frame 116', () {
+      final tracker = BallTracker();
+
+      tracker.track(
+        frameIndex: 114,
+        timestamp: const Duration(milliseconds: 3767),
+        candidates: const [
+          BallCandidate(
+            centerX: 576.5,
+            centerY: 813.5,
+            radius: 43.5,
+            confidence: 0.9,
+            isCombinedRedYellow: true,
+          ),
+        ],
+      );
+
+      final previous = tracker.track(
+        frameIndex: 115,
+        timestamp: const Duration(milliseconds: 3800),
+        candidates: const [
+          BallCandidate(
+            centerX: 576.5,
+            centerY: 785.5,
+            radius: 40.5,
+            confidence: 0.861,
+          ),
+        ],
+      );
+
+      expect(previous, isNotNull);
+
+      final result = tracker.track(
+        frameIndex: 116,
+        timestamp: const Duration(milliseconds: 3833),
+        candidates: const [
+          BallCandidate(
+            centerX: 577.5,
+            centerY: 768.5,
+            radius: 17,
+            confidence: 0.65,
+            isMotionBlur: true,
+          ),
+          BallCandidate(
+            centerX: 399.5,
+            centerY: 609.5,
+            radius: 22,
+            confidence: 0.621,
+            isMotionBlur: true,
+          ),
+        ],
+      );
+
+      // Do not switch to a distant background candidate.
+      expect(result?.centerX, isNot(399.5));
+      expect(result?.centerY, isNot(609.5));
+    });
+
     test('ends tracking after repeated misses once movement started', () {
       final tracker = BallTracker(
         maximumMissedFrames: 3,
