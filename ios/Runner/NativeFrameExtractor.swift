@@ -13,17 +13,20 @@ final class NativeFrameExtractor {
         let output: AVAssetReaderTrackOutput
         let context: CIContext
         let jpegQuality: CGFloat
+        let preferredTransform: CGAffineTransform
         var frameIndex: Int
 
         init(
             reader: AVAssetReader,
             output: AVAssetReaderTrackOutput,
-            jpegQuality: CGFloat
+            jpegQuality: CGFloat,
+            preferredTransform: CGAffineTransform
         ) {
             self.reader = reader
             self.output = output
             self.context = CIContext()
             self.jpegQuality = jpegQuality
+            self.preferredTransform = preferredTransform
             self.frameIndex = 0
         }
     }
@@ -194,7 +197,8 @@ final class NativeFrameExtractor {
                 reader: reader,
                 output: output,
                 jpegQuality:
-                    CGFloat(clampedQuality) / 100.0
+                    CGFloat(clampedQuality) / 100.0,
+                preferredTransform: track.preferredTransform
             )
 
             result([
@@ -275,12 +279,24 @@ final class NativeFrameExtractor {
         let ciImage = CIImage(
             cvPixelBuffer: imageBuffer
         )
+        let rotatedImage = ciImage
+            .transformed(by: session.preferredTransform)
+            .transformed(
+                by: CGAffineTransform(rotationAngle: .pi)
+            )
+        let bounds = rotatedImage.extent
+        let orientedImage = rotatedImage.transformed(
+            by: CGAffineTransform(
+                translationX: -bounds.minX,
+                y: -bounds.minY
+            )
+        )
 
         guard
             let cgImage =
                 session.context.createCGImage(
-                    ciImage,
-                    from: ciImage.extent
+                    orientedImage,
+                    from: orientedImage.extent
                 )
         else {
             result(
