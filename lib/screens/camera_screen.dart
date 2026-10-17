@@ -80,7 +80,7 @@ class _CameraScreenState extends State<CameraScreen>
     }
   }
 
-  static const double _videoFps = 60.0;
+  double _videoFps = 60.0;
   CameraController? _cameraController;
   Future<void>? _initializeCameraFuture;
   VideoPlayerController? _videoPlayerController;
@@ -260,6 +260,32 @@ class _CameraScreenState extends State<CameraScreen>
         'NATIVE FRAME METADATA SAMPLE '
         '$sampleFrames',
       );
+
+      final frameCount = result['frameCount'];
+      final firstPtsMs = result['firstPtsMs'];
+      final lastPtsMs = result['lastPtsMs'];
+      final minimumStepMs = result['minimumStepMs'];
+      final maximumStepMs = result['maximumStepMs'];
+
+      if (frameCount is num &&
+          firstPtsMs is num &&
+          lastPtsMs is num &&
+          minimumStepMs is num &&
+          maximumStepMs is num &&
+          frameCount > 1 &&
+          lastPtsMs > firstPtsMs &&
+          minimumStepMs > 0 &&
+          (maximumStepMs - minimumStepMs).abs() < 0.1) {
+        final fps =
+            (frameCount - 1) * 1000.0 / (lastPtsMs - firstPtsMs);
+
+        if (fps >= 1 && fps <= 240 && mounted) {
+          setState(() {
+            _videoFps = fps;
+          });
+          debugPrint('VIDEO FPS DETECTED fps=$_videoFps');
+        }
+      }
     } on PlatformException catch (error) {
       debugPrint(
         'NATIVE FRAME METADATA ERROR '
@@ -422,6 +448,7 @@ class _CameraScreenState extends State<CameraScreen>
         return;
       }
 
+      await _readNativeFrameMetadata(video.path);
       await _initializeVideoPlayer(video);
 
       if (!mounted) {
@@ -639,7 +666,7 @@ class _CameraScreenState extends State<CameraScreen>
   Future<void> _showInitialSetupDialog(
     Uint8List imageBytes,
     Duration actualPosition,
-    dynamic imageInfo,
+    ImageInfoResult imageInfo,
     List<MarkerCandidate> markers,
   ) async {
     final largestBlob = imageInfo.largestBlob;
