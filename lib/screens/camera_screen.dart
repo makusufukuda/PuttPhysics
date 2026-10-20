@@ -276,8 +276,7 @@ class _CameraScreenState extends State<CameraScreen>
           lastPtsMs > firstPtsMs &&
           minimumStepMs > 0 &&
           (maximumStepMs - minimumStepMs).abs() < 0.1) {
-        final fps =
-            (frameCount - 1) * 1000.0 / (lastPtsMs - firstPtsMs);
+        final fps = (frameCount - 1) * 1000.0 / (lastPtsMs - firstPtsMs);
 
         if (fps >= 1 && fps <= 240 && mounted) {
           setState(() {
@@ -845,15 +844,19 @@ class _CameraScreenState extends State<CameraScreen>
       final duration = videoController.value.duration;
 
       final analysisStopwatch = Stopwatch()..start();
+      var imageInspectMicroseconds = 0;
 
       await for (final frame in FrameExtractor.extractFrames(
         videoPath: videoPath,
         duration: duration,
       )) {
+        final imageInspectStopwatch = Stopwatch()..start();
         final imageInfo = ImageInspector.inspect(
           frame.imageBytes,
           debugFrameIndex: DebugLog.verbose ? _frameAnalysisCount + 1 : null,
         );
+        imageInspectStopwatch.stop();
+        imageInspectMicroseconds += imageInspectStopwatch.elapsedMicroseconds;
 
         if (imageInfo == null) {
           continue;
@@ -1131,6 +1134,9 @@ class _CameraScreenState extends State<CameraScreen>
       }
 
       analysisStopwatch.stop();
+      debugPrint(
+        "IMAGE INSPECT TIMING totalMs=${(imageInspectMicroseconds / 1000).toStringAsFixed(1)} averageMs=${_frameAnalysisCount == 0 ? 0 : (imageInspectMicroseconds / 1000 / _frameAnalysisCount).toStringAsFixed(2)}",
+      );
       debugPrint(
         'VIDEO ANALYSIS TIMING '
         'frames=$_frameAnalysisCount '

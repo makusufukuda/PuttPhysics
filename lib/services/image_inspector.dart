@@ -77,7 +77,14 @@ class ImageInspector {
     Uint8List imageBytes, {
     int? debugFrameIndex,
   }) {
+    final decodeWatch = Stopwatch()..start();
     final image = img.decodeImage(imageBytes);
+    decodeWatch.stop();
+    if (debugFrameIndex != null && debugFrameIndex <= 20) {
+      debugPrint(
+        "IMAGE DECODE TIMING frame=$debugFrameIndex ms=${(decodeWatch.elapsedMicroseconds / 1000).toStringAsFixed(2)}",
+      );
+    }
 
     if (image == null) {
       return null;
@@ -97,8 +104,16 @@ class ImageInspector {
       blue: centerBlue,
     );
 
+    final colorWatch = Stopwatch()..start();
     final scanResult = ColorScanner.scan(image);
+    colorWatch.stop();
+    if (debugFrameIndex != null && debugFrameIndex <= 20) {
+      debugPrint(
+        "COLOR SCAN TIMING frame=$debugFrameIndex ms=${(colorWatch.elapsedMicroseconds / 1000).toStringAsFixed(2)}",
+      );
+    }
 
+    final blobWatch = Stopwatch()..start();
     final blobs = BlobAnalyzer.extractBlobs(
       scanResult.mask,
       minimumPixelCount: _minimumBlobPixelCount,
@@ -113,6 +128,13 @@ class ImageInspector {
       scanResult.redMask,
       minimumPixelCount: _minimumBlobPixelCount,
     );
+
+    blobWatch.stop();
+    if (debugFrameIndex != null && debugFrameIndex <= 20) {
+      debugPrint(
+        "BLOB ANALYSIS TIMING frame=$debugFrameIndex ms=${(blobWatch.elapsedMicroseconds / 1000).toStringAsFixed(2)}",
+      );
+    }
 
     final largestYellowBlob = _findLargestBlob(yellowBlobs);
     final largestRedBlob = _findLargestBlob(redBlobs);
