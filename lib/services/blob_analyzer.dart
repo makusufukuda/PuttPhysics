@@ -13,7 +13,7 @@ class BlobAnalyzer {
       for (var x = 0; x < mask.width; x++) {
         final index = y * mask.width + x;
 
-        if (visited[index] || !mask.getPixel(x, y)) {
+        if (visited[index] || !mask.pixels[index]) {
           continue;
         }
 
@@ -84,7 +84,7 @@ class BlobAnalyzer {
 
         final nextIndex = nextY * mask.width + nextX;
 
-        if (visited[nextIndex] || !mask.getPixel(nextX, nextY)) {
+        if (visited[nextIndex] || !mask.pixels[nextIndex]) {
           continue;
         }
 
