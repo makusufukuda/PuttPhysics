@@ -38,11 +38,12 @@ class ColorScanner {
           redPixels++;
         }
 
-        yellowMask.setPixel(x, y, isYellow);
-        redMask.setPixel(x, y, isRed);
+        final index = y * image.width + x;
+        yellowMask.pixels[index] = isYellow;
+        redMask.pixels[index] = isRed;
 
         // 従来処理も残す
-        mask.setPixel(x, y, isYellow || isRed);
+        mask.pixels[index] = isYellow || isRed;
       }
     }
 
