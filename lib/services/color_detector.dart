@@ -22,8 +22,8 @@ class ColorDetector {
     final g = green / 255.0;
     final b = blue / 255.0;
 
-    final maxValue = [r, g, b].reduce((a, b) => a > b ? a : b);
-    final minValue = [r, g, b].reduce((a, b) => a < b ? a : b);
+    final maxValue = r > g ? (r > b ? r : b) : (g > b ? g : b);
+    final minValue = r < g ? (r < b ? r : b) : (g < b ? g : b);
     final difference = maxValue - minValue;
 
     double hue;
