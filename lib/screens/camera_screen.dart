@@ -85,6 +85,7 @@ class _CameraScreenState extends State<CameraScreen>
   Future<void>? _initializeCameraFuture;
   VideoPlayerController? _videoPlayerController;
   String? _recordedVideoPath;
+  String? _selectedVideoName;
   Map<String, Offset>? _confirmedMarkerPositions;
 
   // User-confirmed initial ball position in image coordinates.
@@ -456,6 +457,12 @@ class _CameraScreenState extends State<CameraScreen>
 
       setState(() {
         _recordedVideoPath = video.path;
+        _selectedVideoName =
+            RegExp(
+              r'IMG_\d+\.mov$',
+              caseSensitive: false,
+            ).firstMatch(video.name)?.group(0) ??
+            video.name;
         _analysisResultMessage = null;
         _putterTrackingReport = null;
       });
@@ -1362,6 +1369,14 @@ class _CameraScreenState extends State<CameraScreen>
             icon: const Icon(Icons.video_library),
             label: const Text("動画を選択"),
           ),
+          if (_selectedVideoName != null)
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: Text(
+                '選択中の動画: $_selectedVideoName',
+                textAlign: TextAlign.center,
+              ),
+            ),
           Expanded(
             child: VideoPlayerView(
               cameraController: _cameraController,
