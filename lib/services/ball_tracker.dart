@@ -58,6 +58,8 @@ class BallTracker {
     required int frameIndex,
     required Duration timestamp,
     required List<BallCandidate> candidates,
+    double? initialPositionX,
+    double? initialPositionY,
   }) {
     if (_trackingEnded) {
       return null;
@@ -69,7 +71,12 @@ class BallTracker {
     }
 
     final selectedCandidate = _lastTrackedBall == null
-        ? _selectInitialCandidate(candidates, frameIndex)
+        ? _selectInitialCandidate(
+            candidates,
+            frameIndex,
+            initialPositionX: initialPositionX,
+            initialPositionY: initialPositionY,
+          )
         : _findBestMatchingCandidate(candidates, timestamp, frameIndex);
 
     if (selectedCandidate == null) {
@@ -118,8 +125,36 @@ class BallTracker {
 
   BallCandidate? _selectInitialCandidate(
     List<BallCandidate> candidates,
-    int frameIndex,
-  ) {
+    int frameIndex, {
+    double? initialPositionX,
+    double? initialPositionY,
+  }) {
+    if (initialPositionX != null && initialPositionY != null) {
+      const maximumInitialDistancePixels = 50.0;
+
+      BallCandidate? nearest;
+      var nearestDistance = double.infinity;
+
+      for (final candidate in candidates) {
+        final dx = candidate.centerX - initialPositionX;
+        final dy = candidate.centerY - initialPositionY;
+        final distance = math.sqrt(dx * dx + dy * dy);
+
+        if (distance <= maximumInitialDistancePixels &&
+            distance < nearestDistance) {
+          nearest = candidate;
+          nearestDistance = distance;
+        }
+      }
+
+      if (nearest == null) {
+        return null;
+      }
+
+      _initialCandidateHistory.clear();
+      return nearest;
+    }
+
     for (final candidate in candidates) {
       if (candidate.isCombinedRedYellow && !candidate.isMotionBlur) {
         _initialCandidateHistory.clear();

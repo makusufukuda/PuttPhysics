@@ -1033,6 +1033,8 @@ class _CameraScreenState extends State<CameraScreen>
           frameIndex: _frameAnalysisCount,
           timestamp: frame.position,
           candidates: imageInfo.ballCandidates,
+          initialPositionX: _confirmedBallPosition?.dx,
+          initialPositionY: _confirmedBallPosition?.dy,
         );
 
         if (trackedBall == null) {

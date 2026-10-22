@@ -5,6 +5,37 @@ import 'package:putt_physics_v1/services/ball_tracker.dart';
 
 void main() {
   group('BallTracker', () {
+    test('selects candidate near confirmed initial ball position', () {
+      final tracker = BallTracker();
+
+      final result = tracker.track(
+        frameIndex: 1,
+        timestamp: const Duration(milliseconds: 0),
+        initialPositionX: 508.0,
+        initialPositionY: 1093.0,
+        candidates: const [
+          BallCandidate(
+            centerX: 284.5,
+            centerY: 62.0,
+            radius: 20,
+            confidence: 0.95,
+            isCombinedRedYellow: true,
+          ),
+          BallCandidate(
+            centerX: 508.0,
+            centerY: 1093.0,
+            radius: 20,
+            confidence: 0.90,
+            isCombinedRedYellow: true,
+          ),
+        ],
+      );
+
+      expect(result, isNotNull);
+      expect(result!.centerX, 508.0);
+      expect(result.centerY, 1093.0);
+    });
+
     test('selects combined red-yellow candidate initially', () {
       final tracker = BallTracker();
 
