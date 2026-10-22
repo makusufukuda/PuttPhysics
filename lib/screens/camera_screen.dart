@@ -446,7 +446,7 @@ class _CameraScreenState extends State<CameraScreen>
       if (video == null || !mounted) {
         return;
       }
-
+      debugPrint('SELECTED VIDEO NAME: ${video.name}');
       await _readNativeFrameMetadata(video.path);
       await _initializeVideoPlayer(video);
 
