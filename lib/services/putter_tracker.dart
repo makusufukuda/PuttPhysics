@@ -4,7 +4,7 @@ import '../models/putter_candidate.dart';
 import '../models/tracked_putter.dart';
 
 class PutterTracker {
-  PutterTracker({this.maximumMovementPixels = 120.0});
+  PutterTracker({this.maximumMovementPixels = 240.0});
 
   final double maximumMovementPixels;
   TrackedPutter? _previous;
