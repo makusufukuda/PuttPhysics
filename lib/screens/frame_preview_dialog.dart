@@ -191,7 +191,22 @@ class _FramePreviewDialogState extends State<FramePreviewDialog> {
 
   Future<void> _handleImageTap(Offset localPosition, Size displaySize) async {
     if (_selectedMarkerPosition == null) {
-      _inspectTappedPixel(localPosition, displaySize);
+      final x = (localPosition.dx / displaySize.width * widget.imageWidth)
+          .clamp(0.0, widget.imageWidth.toDouble() - 1);
+      final y = (localPosition.dy / displaySize.height * widget.imageHeight)
+          .clamp(0.0, widget.imageHeight.toDouble() - 1);
+
+      setState(() {
+        _editableBallPosition = Offset(x, y);
+        _isBallPositionConfirmed = false;
+        _tappedImagePosition = Offset(x, y);
+      });
+
+      debugPrint(
+        'BALL POSITION SELECTED '
+        'x=${x.toStringAsFixed(1)} '
+        'y=${y.toStringAsFixed(1)}',
+      );
       return;
     }
 
@@ -476,7 +491,10 @@ class _FramePreviewDialogState extends State<FramePreviewDialog> {
                               selected: _selectedMarkerPosition == entry.$1,
                               onSelected: (_) {
                                 setState(() {
-                                  _selectedMarkerPosition = entry.$1;
+                                  _selectedMarkerPosition =
+                                      _selectedMarkerPosition == entry.$1
+                                      ? null
+                                      : entry.$1;
                                 });
                               },
                             ),
