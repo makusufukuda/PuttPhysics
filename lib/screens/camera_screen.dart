@@ -10,6 +10,7 @@ import 'package:video_player/video_player.dart';
 import '../services/frame_extractor.dart';
 import '../services/debug_log.dart';
 import '../services/image_inspector.dart';
+import '../services/initial_ball_search_region.dart';
 import '../models/tracking_session.dart';
 import '../models/putter_tracking_session.dart';
 import '../models/marker_calibration_result.dart';
@@ -1029,10 +1030,29 @@ class _CameraScreenState extends State<CameraScreen>
           }
         }
 
+        final savedMarkers = _confirmedMarkerPositions;
+        final hasCompleteMarkers =
+            savedMarkers != null &&
+            MarkerPosition.values.every(
+              (position) => savedMarkers.containsKey(position.name),
+            );
+
+        final initialSearch =
+            _ballTracker.lastTrackedBall == null && hasCompleteMarkers;
+
+        final ballCandidates = initialSearch
+            ? imageInfo.ballCandidates.where((candidate) {
+                return InitialBallSearchRegion.contains(
+                  markers: savedMarkers,
+                  point: Offset(candidate.centerX, candidate.centerY),
+                );
+              }).toList()
+            : imageInfo.ballCandidates;
+
         final trackedBall = _ballTracker.track(
           frameIndex: _frameAnalysisCount,
           timestamp: frame.position,
-          candidates: imageInfo.ballCandidates,
+          candidates: ballCandidates,
           initialPositionX: _confirmedBallPosition?.dx,
           initialPositionY: _confirmedBallPosition?.dy,
         );
