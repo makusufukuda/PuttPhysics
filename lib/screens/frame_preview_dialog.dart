@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:image/image.dart' as img;
 
 import '../services/color_detector.dart';
+import '../services/initial_ball_search_region.dart';
 import 'marker_precision_dialog.dart';
 
 class BallCandidateViewData {
@@ -146,6 +147,9 @@ class _FramePreviewDialogState extends State<FramePreviewDialog> {
   // True only after the user confirms the ball center.
   bool _isBallPositionConfirmed = false;
 
+  // マーカー確定後にボール位置の設定へ進む。
+  bool _areMarkersConfirmed = false;
+
   // User-confirmed marker positions, stored in original image coordinates.
   late final Map<String, Offset> _editableMarkerPositions;
 
@@ -191,6 +195,8 @@ class _FramePreviewDialogState extends State<FramePreviewDialog> {
 
   Future<void> _handleImageTap(Offset localPosition, Size displaySize) async {
     if (_selectedMarkerPosition == null) {
+      if (!_areMarkersConfirmed) return;
+
       final x = (localPosition.dx / displaySize.width * widget.imageWidth)
           .clamp(0.0, widget.imageWidth.toDouble() - 1);
       final y = (localPosition.dy / displaySize.height * widget.imageHeight)
@@ -410,7 +416,7 @@ class _FramePreviewDialogState extends State<FramePreviewDialog> {
                               fit: BoxFit.fill,
                               gaplessPlayback: true,
                             ),
-                            if (hasLargestBlob)
+                            if (_areMarkersConfirmed && hasLargestBlob)
                               CustomPaint(
                                 painter: _BlobOverlayPainter(
                                   sourceWidth: widget.imageWidth,
@@ -424,7 +430,7 @@ class _FramePreviewDialogState extends State<FramePreviewDialog> {
                                 ),
                               ),
 
-                            if (hasBestCandidate)
+                            if (_areMarkersConfirmed && hasBestCandidate)
                               CustomPaint(
                                 painter: _BallCandidatePainter(
                                   sourceWidth: widget.imageWidth,
@@ -506,9 +512,7 @@ class _FramePreviewDialogState extends State<FramePreviewDialog> {
             ),
             const SizedBox(height: 8),
             OutlinedButton.icon(
-              onPressed: _editableMarkerPositions.length == 4
-                  ? _confirmBallPosition
-                  : null,
+              onPressed: _areMarkersConfirmed ? _confirmBallPosition : null,
               icon: const Icon(Icons.adjust),
               label: const Text('ボール位置を確認'),
             ),
@@ -523,22 +527,74 @@ class _FramePreviewDialogState extends State<FramePreviewDialog> {
           child: const Text('閉じる'),
         ),
         FilledButton(
-          onPressed: _editableMarkerPositions.length == 4
+          onPressed:
+              !_areMarkersConfirmed && _editableMarkerPositions.length == 4
               ? () {
-                  Navigator.of(context).pop(
-                    FrameSetupResult(
-                      markerPositions: Map<String, Offset>.from(
-                        _editableMarkerPositions,
-                      ),
-                      ballPosition: _isBallPositionConfirmed
-                          ? _editableBallPosition
-                          : null,
-                    ),
-                  );
+                  setState(() {
+                    _areMarkersConfirmed = true;
+                    _selectedMarkerPosition = null;
+                    _tappedImagePosition = null;
+
+                    final candidates = widget.ballCandidates
+                        .where(
+                          (candidate) => InitialBallSearchRegion.contains(
+                            markers: _editableMarkerPositions,
+                            point: Offset(candidate.centerX, candidate.centerY),
+                          ),
+                        )
+                        .toList();
+
+                    debugPrint(
+                      'INITIAL BALL SEARCH '
+                      'all=${widget.ballCandidates.length} '
+                      'inside=${candidates.length} '
+                      'markers=$_editableMarkerPositions',
+                    );
+
+                    for (final candidate in widget.ballCandidates) {
+                      debugPrint(
+                        'INITIAL BALL CANDIDATE '
+                        'x=${candidate.centerX.toStringAsFixed(1)} '
+                        'y=${candidate.centerY.toStringAsFixed(1)} '
+                        'confidence=${candidate.confidence.toStringAsFixed(3)}',
+                      );
+                    }
+
+                    if (candidates.isNotEmpty) {
+                      candidates.sort(
+                        (a, b) => b.confidence.compareTo(a.confidence),
+                      );
+                      final best = candidates.first;
+                      _editableBallPosition = Offset(
+                        best.centerX,
+                        best.centerY,
+                      );
+                    } else {
+                      _editableBallPosition = null;
+                    }
+
+                    _isBallPositionConfirmed = false;
+                  });
                 }
               : null,
-          child: const Text('マーカー位置を確定'),
+          child: Text(_areMarkersConfirmed ? 'マーカー確定済み' : 'マーカー位置を確定'),
         ),
+        if (_areMarkersConfirmed)
+          FilledButton(
+            onPressed: _isBallPositionConfirmed && _editableBallPosition != null
+                ? () {
+                    Navigator.of(context).pop(
+                      FrameSetupResult(
+                        markerPositions: Map<String, Offset>.from(
+                          _editableMarkerPositions,
+                        ),
+                        ballPosition: _editableBallPosition,
+                      ),
+                    );
+                  }
+                : null,
+            child: const Text('初期設定完了'),
+          ),
       ],
     );
   }

@@ -51,8 +51,8 @@ class BlobFilter {
   }) {
     final shouldDebug =
         debugFrameIndex != null &&
-        debugFrameIndex >= 127 &&
-        debugFrameIndex <= 132 &&
+        (debugFrameIndex == 0 ||
+            (debugFrameIndex >= 127 && debugFrameIndex <= 132)) &&
         blob.pixelCount >= minimumPixelCount &&
         blob.centroidY >= 850;
 

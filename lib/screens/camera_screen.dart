@@ -365,7 +365,7 @@ class _CameraScreenState extends State<CameraScreen>
       final photo = await camera.takePicture();
       final bytes = await photo.readAsBytes();
       debugPrint("INITIAL SETUP IMAGE bytes=${bytes.length}");
-      final imageInfo = ImageInspector.inspect(bytes);
+      final imageInfo = ImageInspector.inspect(bytes, debugFrameIndex: 0);
       debugPrint(
         "INITIAL SETUP INSPECT width=${imageInfo?.width} height=${imageInfo?.height} ballCandidates=${imageInfo?.ballCandidateCount}",
       );
@@ -677,7 +677,29 @@ class _CameraScreenState extends State<CameraScreen>
     List<MarkerCandidate> markers,
   ) async {
     final largestBlob = imageInfo.largestBlob;
-    final bestBallCandidate = imageInfo.bestBallCandidate;
+
+    final savedMarkers = _confirmedMarkerPositions;
+    final hasCompleteMarkers =
+        savedMarkers != null &&
+        MarkerPosition.values.every(
+          (position) => savedMarkers.containsKey(position.name),
+        );
+
+    final previewBallCandidates = hasCompleteMarkers
+        ? imageInfo.ballCandidates.where((candidate) {
+            return InitialBallSearchRegion.contains(
+              markers: savedMarkers,
+              point: Offset(candidate.centerX, candidate.centerY),
+            );
+          }).toList()
+        : imageInfo.ballCandidates;
+
+    final bestBallCandidate = previewBallCandidates.isEmpty
+        ? null
+        : previewBallCandidates.reduce(
+            (a, b) => a.confidence >= b.confidence ? a : b,
+          );
+
     debugPrint(
       'PREVIEW SAVED MARKERS '
       'count=${_confirmedMarkerPositions?.length ?? 0} '
@@ -716,8 +738,8 @@ class _CameraScreenState extends State<CameraScreen>
           largestBlobMinY: largestBlob?.minY,
           largestBlobWidth: largestBlob?.width,
           largestBlobHeight: largestBlob?.height,
-          ballCandidateCount: imageInfo.ballCandidateCount,
-          ballCandidates: imageInfo.ballCandidates
+          ballCandidateCount: previewBallCandidates.length,
+          ballCandidates: previewBallCandidates
               .map(
                 (candidate) => BallCandidateViewData(
                   centerX: candidate.centerX,
