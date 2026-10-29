@@ -3,7 +3,9 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image/image.dart' as img;
 
+import '../services/blob_analyzer.dart';
 import '../services/color_detector.dart';
+import '../services/color_scanner.dart';
 import '../services/initial_ball_search_region.dart';
 import 'marker_precision_dialog.dart';
 
@@ -284,6 +286,90 @@ class _FramePreviewDialogState extends State<FramePreviewDialog> {
       'x=${confirmedPosition.dx.toStringAsFixed(1)} '
       'y=${confirmedPosition.dy.toStringAsFixed(1)}',
     );
+
+    final image = img.decodeImage(widget.imageBytes);
+    if (image != null) {
+      const searchRadius = 50;
+      final cx = confirmedPosition.dx.round();
+      final cy = confirmedPosition.dy.round();
+
+      var redCount = 0;
+      var yellowCount = 0;
+      var otherCount = 0;
+
+      for (var y = cy - searchRadius; y <= cy + searchRadius; y++) {
+        for (var x = cx - searchRadius; x <= cx + searchRadius; x++) {
+          if (x < 0 || x >= image.width || y < 0 || y >= image.height) {
+            continue;
+          }
+
+          final dx = x - cx;
+          final dy = y - cy;
+          if (dx * dx + dy * dy > searchRadius * searchRadius) {
+            continue;
+          }
+
+          final pixel = image.getPixel(x, y);
+          final hsv = ColorDetector.rgbToHsv(
+            red: pixel.r.toInt(),
+            green: pixel.g.toInt(),
+            blue: pixel.b.toInt(),
+          );
+
+          if (ColorDetector.isRed(hsv)) {
+            redCount++;
+          } else if (ColorDetector.isYellow(hsv)) {
+            yellowCount++;
+          } else {
+            otherCount++;
+          }
+        }
+      }
+
+      debugPrint(
+        'BALL COLOR DIAGNOSTIC '
+        'center=$cx,$cy radius=$searchRadius '
+        'red=$redCount yellow=$yellowCount other=$otherCount',
+      );
+
+      final scan = ColorScanner.scan(image);
+
+      for (final entry in {
+        'red': scan.redMask,
+        'yellow': scan.yellowMask,
+        'combined': scan.mask,
+      }.entries) {
+        final blobs = BlobAnalyzer.extractBlobs(
+          entry.value,
+          minimumPixelCount: 10,
+        );
+
+        final nearby = blobs.where((blob) {
+          final nearestX = cx.clamp(blob.minX, blob.maxX);
+          final nearestY = cy.clamp(blob.minY, blob.maxY);
+          final dx = nearestX - cx;
+          final dy = nearestY - cy;
+          return dx * dx + dy * dy <= searchRadius * searchRadius;
+        }).toList()..sort((a, b) => b.pixelCount.compareTo(a.pixelCount));
+
+        debugPrint(
+          'BALL BLOB DIAGNOSTIC '
+          'color=${entry.key} nearby=${nearby.length}',
+        );
+
+        for (final blob in nearby.take(5)) {
+          debugPrint(
+            'BALL BLOB DETAIL '
+            'color=${entry.key} '
+            'pixels=${blob.pixelCount} '
+            'center=${blob.centroidX.toStringAsFixed(1)},'
+            '${blob.centroidY.toStringAsFixed(1)} '
+            'size=${blob.width}x${blob.height} '
+            'fill=${blob.fillRatio.toStringAsFixed(3)}',
+          );
+        }
+      }
+    }
   }
 
   void _inspectTappedPixel(Offset localPosition, Size displaySize) {
