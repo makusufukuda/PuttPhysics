@@ -2,6 +2,7 @@ import AVFoundation
 import CoreImage
 import Flutter
 import Foundation
+import Photos
 import UIKit
 
 final class NativeFrameExtractor {
@@ -46,6 +47,120 @@ final class NativeFrameExtractor {
                     "ok": true,
                     "platform": "ios"
                 ])
+
+            case "checkPhotoLibraryAccess":
+                let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+                result([
+                    "status": status.rawValue,
+                    "authorized": status == .authorized || status == .limited
+                ])
+
+            case "exportOriginalVideo":
+                guard
+                    let args = call.arguments as? [String: Any],
+                    let filename = args["filename"] as? String
+                else {
+                    result(FlutterError(
+                        code: "INVALID_ARGUMENTS",
+                        message: "filename is required",
+                        details: nil
+                    ))
+                    return
+                }
+
+                let options = PHFetchOptions()
+                options.predicate = NSPredicate(
+                    format: "mediaType == %d",
+                    PHAssetMediaType.video.rawValue
+                )
+
+                let assets = PHAsset.fetchAssets(with: options)
+                var targetResource: PHAssetResource?
+
+                assets.enumerateObjects { asset, _, stop in
+                    let resources = PHAssetResource.assetResources(for: asset)
+                    if let resource = resources.first(where: {
+                        $0.type == .video &&
+                        $0.originalFilename.caseInsensitiveCompare(filename) == .orderedSame
+                    }) {
+                        targetResource = resource
+                        stop.pointee = true
+                    }
+                }
+
+                guard let resource = targetResource else {
+                    result(FlutterError(
+                        code: "VIDEO_NOT_FOUND",
+                        message: "Original video resource not found",
+                        details: filename
+                    ))
+                    return
+                }
+
+                let destination = FileManager.default.temporaryDirectory
+                    .appendingPathComponent(UUID().uuidString + ".mov")
+
+                let requestOptions = PHAssetResourceRequestOptions()
+                requestOptions.isNetworkAccessAllowed = true
+
+                PHAssetResourceManager.default().writeData(
+                    for: resource,
+                    toFile: destination,
+                    options: requestOptions
+                ) { error in
+                    DispatchQueue.main.async {
+                        if let error = error {
+                            result(FlutterError(
+                                code: "EXPORT_FAILED",
+                                message: error.localizedDescription,
+                                details: nil
+                            ))
+                        } else {
+                            result(destination.path)
+                        }
+                    }
+                }
+
+            case "inspectPhotoLibraryVideos":
+                let options = PHFetchOptions()
+                options.sortDescriptors = [
+                    NSSortDescriptor(key: "creationDate", ascending: false)
+                ]
+                options.fetchLimit = 20
+
+                let assets = PHAsset.fetchAssets(
+                    with: .video,
+                    options: options
+                )
+
+                var videos: [[String: Any]] = []
+
+                assets.enumerateObjects { asset, _, _ in
+                    let resources = PHAssetResource.assetResources(for: asset)
+
+                    videos.append([
+                        "duration": asset.duration,
+                        "resources": resources.map { resource in
+                            [
+                                "type": resource.type.rawValue,
+                                "filename": resource.originalFilename,
+                                "uti": resource.uniformTypeIdentifier
+                            ]
+                        }
+                    ])
+                }
+
+                result(videos)
+
+            case "requestPhotoLibraryAccess":
+                PHPhotoLibrary.requestAuthorization(for: .readWrite) { status in
+                    DispatchQueue.main.async {
+                        result([
+                            "status": status.rawValue,
+                            "authorized": status == .authorized || status == .limited
+                        ])
+                    }
+                }
 
             case "openFrameReader":
                 guard

@@ -449,6 +449,58 @@ class _CameraScreenState extends State<CameraScreen>
         return;
       }
       debugPrint('SELECTED VIDEO NAME: ${video.name}');
+
+      try {
+        final access = await _nativeFrameChannel
+            .invokeMapMethod<String, Object?>('checkPhotoLibraryAccess');
+        debugPrint('PHOTO LIBRARY ACCESS $access');
+
+        if (access?['status'] == 0) {
+          final permission = await _nativeFrameChannel
+              .invokeMapMethod<String, Object?>(
+                'requestPhotoLibraryAccess',
+              );
+          debugPrint('PHOTO LIBRARY PERMISSION $permission');
+        }
+      } catch (error) {
+        debugPrint('PHOTO LIBRARY ACCESS ERROR $error');
+      }
+
+      try {
+        final resources = await _nativeFrameChannel
+            .invokeListMethod<dynamic>('inspectPhotoLibraryVideos');
+
+        for (final item in resources ?? <dynamic>[]) {
+          if (item is Map) {
+            final entries = item['resources'];
+            if (entries is List &&
+                entries.any((entry) =>
+                    entry is Map &&
+                    entry['filename'].toString().contains('IMG_2812'))) {
+              debugPrint('ORIGINAL VIDEO RESOURCES $item');
+            }
+          }
+        }
+      } catch (error) {
+        debugPrint('ORIGINAL VIDEO RESOURCES ERROR $error');
+      }
+
+      try {
+        final originalPath = await _nativeFrameChannel.invokeMethod<String>(
+          'exportOriginalVideo',
+          {'filename': 'IMG_2812.MOV'},
+        );
+
+        if (originalPath != null) {
+          debugPrint('ORIGINAL VIDEO PATH $originalPath');
+          debugPrint('ORIGINAL VIDEO METADATA BEGIN');
+          await _readNativeFrameMetadata(originalPath);
+          debugPrint('ORIGINAL VIDEO METADATA END');
+        }
+      } catch (error) {
+        debugPrint('ORIGINAL VIDEO EXPORT ERROR $error');
+      }
+
       await _readNativeFrameMetadata(video.path);
       await _initializeVideoPlayer(video);
 
