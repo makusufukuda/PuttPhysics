@@ -276,7 +276,7 @@ class _CameraScreenState extends State<CameraScreen>
           frameCount > 1 &&
           lastPtsMs > firstPtsMs &&
           minimumStepMs > 0 &&
-          (maximumStepMs - minimumStepMs).abs() < 0.1) {
+          maximumStepMs > 0) {
         final fps = (frameCount - 1) * 1000.0 / (lastPtsMs - firstPtsMs);
 
         if (fps >= 1 && fps <= 240 && mounted) {
@@ -495,7 +495,7 @@ class _CameraScreenState extends State<CameraScreen>
 
       setState(() {
         _recordedVideoPath = originalPath;
-        _selectedVideoName = video.name;
+        _selectedVideoName = originalName ?? video.name;
         _analysisResultMessage = null;
         _putterTrackingReport = null;
       });
