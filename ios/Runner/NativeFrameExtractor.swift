@@ -33,6 +33,7 @@ final class NativeFrameExtractor {
     }
 
     private static var frameReaderSession: FrameReaderSession?
+    private static let originalVideoPicker = OriginalVideoPicker()
 
     static func register(with messenger: FlutterBinaryMessenger) {
         let channel = FlutterMethodChannel(
@@ -47,6 +48,33 @@ final class NativeFrameExtractor {
                     "ok": true,
                     "platform": "ios"
                 ])
+
+            case "pickOriginalVideo":
+                DispatchQueue.main.async {
+                    guard let scene = UIApplication.shared.connectedScenes
+                        .compactMap({ $0 as? UIWindowScene })
+                        .first(where: { $0.activationState == .foregroundActive }),
+                          let root = scene.windows
+                        .first(where: { $0.isKeyWindow })?.rootViewController
+                    else {
+                        result(FlutterError(
+                            code: "NO_VIEW_CONTROLLER",
+                            message: "Unable to present video picker",
+                            details: nil
+                        ))
+                        return
+                    }
+
+                    var presenter = root
+                    while let presented = presenter.presentedViewController {
+                        presenter = presented
+                    }
+
+                    originalVideoPicker.pickVideo(
+                        from: presenter,
+                        result: result
+                    )
+                }
 
             case "checkPhotoLibraryAccess":
                 let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
@@ -117,6 +145,63 @@ final class NativeFrameExtractor {
                             ))
                         } else {
                             result(destination.path)
+                        }
+                    }
+                }
+
+            case "exportOriginalVideoByAssetId":
+                guard
+                    let args = call.arguments as? [String: Any],
+                    let identifier = args["assetIdentifier"] as? String
+                else {
+                    result(FlutterError(
+                        code: "INVALID_ARGUMENTS",
+                        message: "assetIdentifier is required",
+                        details: nil
+                    ))
+                    return
+                }
+
+                let assets = PHAsset.fetchAssets(
+                    withLocalIdentifiers: [identifier],
+                    options: nil
+                )
+
+                guard let asset = assets.firstObject,
+                      let resource = PHAssetResource.assetResources(for: asset)
+                        .first(where: { $0.type == .video })
+                else {
+                    result(FlutterError(
+                        code: "VIDEO_NOT_FOUND",
+                        message: "Original video not found for asset identifier",
+                        details: identifier
+                    ))
+                    return
+                }
+
+                let destination = FileManager.default.temporaryDirectory
+                    .appendingPathComponent(UUID().uuidString + ".mov")
+
+                let requestOptions = PHAssetResourceRequestOptions()
+                requestOptions.isNetworkAccessAllowed = true
+
+                PHAssetResourceManager.default().writeData(
+                    for: resource,
+                    toFile: destination,
+                    options: requestOptions
+                ) { error in
+                    DispatchQueue.main.async {
+                        if let error = error {
+                            result(FlutterError(
+                                code: "EXPORT_FAILED",
+                                message: error.localizedDescription,
+                                details: nil
+                            ))
+                        } else {
+                            result([
+                                "path": destination.path,
+                                "filename": resource.originalFilename
+                            ])
                         }
                     }
                 }

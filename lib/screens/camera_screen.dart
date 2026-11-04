@@ -4,7 +4,6 @@ import 'dart:typed_data';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show MethodChannel, PlatformException;
-import 'package:image_picker/image_picker.dart';
 import 'package:video_player/video_player.dart';
 
 import '../services/frame_extractor.dart';
@@ -443,65 +442,51 @@ class _CameraScreenState extends State<CameraScreen>
     }
 
     try {
-      final video = await ImagePicker().pickVideo(source: ImageSource.gallery);
+      final selection = await _nativeFrameChannel
+          .invokeMapMethod<String, Object?>('pickOriginalVideo');
 
-      if (video == null || !mounted) {
+      if (selection == null || !mounted) {
         return;
       }
-      debugPrint('SELECTED VIDEO NAME: ${video.name}');
 
-      try {
-        final access = await _nativeFrameChannel
-            .invokeMapMethod<String, Object?>('checkPhotoLibraryAccess');
-        debugPrint('PHOTO LIBRARY ACCESS $access');
-
-        if (access?['status'] == 0) {
-          final permission = await _nativeFrameChannel
-              .invokeMapMethod<String, Object?>(
-                'requestPhotoLibraryAccess',
-              );
-          debugPrint('PHOTO LIBRARY PERMISSION $permission');
-        }
-      } catch (error) {
-        debugPrint('PHOTO LIBRARY ACCESS ERROR $error');
+      final assetIdentifier = selection['assetIdentifier'] as String?;
+      if (assetIdentifier == null || assetIdentifier.isEmpty) {
+        throw StateError('動画の識別子を取得できませんでした');
       }
 
-      try {
-        final resources = await _nativeFrameChannel
-            .invokeListMethod<dynamic>('inspectPhotoLibraryVideos');
+      debugPrint('PICKED ORIGINAL ASSET IDENTIFIER: $assetIdentifier');
 
-        for (final item in resources ?? <dynamic>[]) {
-          if (item is Map) {
-            final entries = item['resources'];
-            if (entries is List &&
-                entries.any((entry) =>
-                    entry is Map &&
-                    entry['filename'].toString().contains('IMG_2812'))) {
-              debugPrint('ORIGINAL VIDEO RESOURCES $item');
-            }
-          }
-        }
-      } catch (error) {
-        debugPrint('ORIGINAL VIDEO RESOURCES ERROR $error');
+      final original = await _nativeFrameChannel
+          .invokeMapMethod<String, Object?>(
+            'exportOriginalVideoByAssetId',
+            {'assetIdentifier': assetIdentifier},
+          );
+
+      if (original == null) {
+        throw StateError('元動画を書き出せませんでした');
       }
 
-      try {
-        final originalPath = await _nativeFrameChannel.invokeMethod<String>(
-          'exportOriginalVideo',
-          {'filename': 'IMG_2812.MOV'},
-        );
+      final originalPath = original['path'] as String?;
+      final originalName = original['filename'] as String?;
 
-        if (originalPath != null) {
-          debugPrint('ORIGINAL VIDEO PATH $originalPath');
-          debugPrint('ORIGINAL VIDEO METADATA BEGIN');
-          await _readNativeFrameMetadata(originalPath);
-          debugPrint('ORIGINAL VIDEO METADATA END');
-        }
-      } catch (error) {
-        debugPrint('ORIGINAL VIDEO EXPORT ERROR $error');
+      if (originalPath == null || originalPath.isEmpty) {
+        throw StateError('元動画のパスを取得できませんでした');
       }
 
-      await _readNativeFrameMetadata(video.path);
+      final video = XFile(
+        originalPath,
+        name: originalName ?? 'original.mov',
+      );
+
+      debugPrint('ORIGINAL VIDEO PATH $originalPath');
+      debugPrint('ORIGINAL VIDEO NAME ${video.name}');
+
+      await _readNativeFrameMetadata(originalPath);
+
+      if (!mounted) {
+        return;
+      }
+
       await _initializeVideoPlayer(video);
 
       if (!mounted) {
@@ -509,18 +494,13 @@ class _CameraScreenState extends State<CameraScreen>
       }
 
       setState(() {
-        _recordedVideoPath = video.path;
-        _selectedVideoName =
-            RegExp(
-              r'IMG_\d+\.mov$',
-              caseSensitive: false,
-            ).firstMatch(video.name)?.group(0) ??
-            video.name;
+        _recordedVideoPath = originalPath;
+        _selectedVideoName = video.name;
         _analysisResultMessage = null;
         _putterTrackingReport = null;
       });
 
-      _showMessage('動画を読み込みました。');
+      _showMessage('元動画を読み込みました。');
     } catch (error) {
       debugPrint('VIDEO PICK ERROR $error');
       if (mounted) {
