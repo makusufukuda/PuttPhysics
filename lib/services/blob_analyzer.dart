@@ -2,6 +2,68 @@ import '../models/blob.dart';
 import 'color_mask.dart';
 
 class BlobAnalyzer {
+
+  /// Extracts combined, yellow, and red blobs in one image traversal.
+  /// Each mask retains independent 4-neighbor connectivity.
+  static (
+    List<Blob> combined,
+    List<Blob> yellow,
+    List<Blob> red,
+  ) extractThreeMasks({
+    required ColorMask combinedMask,
+    required ColorMask yellowMask,
+    required ColorMask redMask,
+    int minimumPixelCount = 1,
+  }) {
+    final width = combinedMask.width;
+    final height = combinedMask.height;
+    final length = width * height;
+
+    if (yellowMask.width != width ||
+        yellowMask.height != height ||
+        redMask.width != width ||
+        redMask.height != height) {
+      throw ArgumentError('Mask dimensions must match');
+    }
+
+    final masks = [combinedMask, yellowMask, redMask];
+    final visited = [
+      List<bool>.filled(length, false),
+      List<bool>.filled(length, false),
+      List<bool>.filled(length, false),
+    ];
+    final results = [<Blob>[], <Blob>[], <Blob>[]];
+
+    for (var index = 0; index < length; index++) {
+      final x = index % width;
+      final y = index ~/ width;
+
+      for (var channel = 0; channel < 3; channel++) {
+        if (visited[channel][index] ||
+            !masks[channel].pixels[index]) {
+          continue;
+        }
+
+        final blob = _extractSingleBlob(
+          mask: masks[channel],
+          startX: x,
+          startY: y,
+          visited: visited[channel],
+        );
+
+        if (blob.pixelCount >= minimumPixelCount) {
+          results[channel].add(blob);
+        }
+      }
+    }
+
+    return (
+      results[0],
+      results[1],
+      results[2],
+    );
+  }
+
   const BlobAnalyzer._();
 
   static List<Blob> extractBlobs(ColorMask mask, {int minimumPixelCount = 1}) {

@@ -635,6 +635,31 @@ class _CameraScreenState extends State<CameraScreen>
         imageBytes,
         debugFrameIndex: frameIndex,
       );
+
+      if (imageInfo != null) {
+        debugPrint(
+          'CAPTURE BALL CANDIDATES '
+          'frame=$frameIndex '
+          'count=${imageInfo.ballCandidates.length}',
+        );
+
+        for (var i = 0; i < imageInfo.ballCandidates.length; i++) {
+          final candidate = imageInfo.ballCandidates[i];
+
+          debugPrint(
+            'CAPTURE BALL CANDIDATE '
+            'frame=$frameIndex '
+            'index=$i '
+            'x=${candidate.centerX.toStringAsFixed(1)} '
+            'y=${candidate.centerY.toStringAsFixed(1)} '
+            'r=${candidate.radius.toStringAsFixed(1)} '
+            'confidence=${candidate.confidence.toStringAsFixed(3)} '
+            'combined=${candidate.isCombinedRedYellow} '
+            'motionBlur=${candidate.isMotionBlur}',
+          );
+        }
+      }
+
       GreenMarkerDiagnostic.inspect(imageBytes, frameIndex: frameIndex);
       PinkMarkerDiagnostic.inspect(imageBytes, frameIndex: frameIndex);
 
@@ -1060,7 +1085,7 @@ class _CameraScreenState extends State<CameraScreen>
           'best=${putterCandidates.isEmpty ? null : putterCandidates.first}',
         );
 
-        if (_frameAnalysisCount <= 20) {
+        if (_frameAnalysisCount >= 370 && _frameAnalysisCount <= 380) {
           DebugLog.print(
             'INITIAL CANDIDATES '
             'frame=$_frameAnalysisCount '
@@ -1092,7 +1117,9 @@ class _CameraScreenState extends State<CameraScreen>
             );
 
         final initialSearch =
-            _ballTracker.lastTrackedBall == null && hasCompleteMarkers;
+            _ballTracker.lastTrackedBall == null &&
+            hasCompleteMarkers &&
+            _confirmedBallPosition == null;
 
         final ballCandidates = initialSearch
             ? imageInfo.ballCandidates.where((candidate) {
