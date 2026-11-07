@@ -72,10 +72,7 @@ void main() {
     mask.setPixel(2, 0, true);
     mask.setPixel(3, 0, true);
 
-    final blobs = BlobAnalyzer.extractBlobs(
-      mask,
-      minimumPixelCount: 2,
-    );
+    final blobs = BlobAnalyzer.extractBlobs(mask, minimumPixelCount: 2);
 
     expect(blobs, hasLength(1));
     expect(blobs.single.pixelCount, 2);
@@ -115,14 +112,8 @@ void main() {
     final yellow = ColorMask(width: 9, height: 5);
     final red = ColorMask(width: 9, height: 5);
 
-    final yellowPoints = [
-      (1, 0), (2, 0), (2, 1),
-      (6, 3), (6, 4),
-    ];
-    final redPoints = [
-      (3, 1), (3, 2),
-      (7, 3), (8, 3),
-    ];
+    final yellowPoints = [(1, 0), (2, 0), (2, 1), (6, 3), (6, 4)];
+    final redPoints = [(3, 1), (3, 2), (7, 3), (8, 3)];
 
     for (final point in yellowPoints) {
       yellow.setPixel(point.$1, point.$2, true);
@@ -146,11 +137,7 @@ void main() {
       redMask: red,
     );
 
-    final newLists = [
-      newResults.$1,
-      newResults.$2,
-      newResults.$3,
-    ];
+    final newLists = [newResults.$1, newResults.$2, newResults.$3];
 
     for (var channel = 0; channel < 3; channel++) {
       final oldBlobs = oldResults[channel];
@@ -171,5 +158,41 @@ void main() {
         expect(b.centroidY, a.centroidY);
       }
     }
+  });
+
+  test('three-mask ROI limits blobs to the selected region', () {
+    final combined = ColorMask(width: 8, height: 5);
+    final yellow = ColorMask(width: 8, height: 5);
+    final red = ColorMask(width: 8, height: 5);
+
+    for (var x = 1; x <= 6; x++) {
+      combined.setPixel(x, 2, true);
+      red.setPixel(x, 2, true);
+    }
+
+    yellow.setPixel(7, 4, true);
+    combined.setPixel(7, 4, true);
+
+    final result = BlobAnalyzer.extractThreeMasks(
+      combinedMask: combined,
+      yellowMask: yellow,
+      redMask: red,
+      minX: 2,
+      minY: 1,
+      maxX: 5,
+      maxY: 4,
+    );
+
+    expect(result.$1, hasLength(1));
+    expect(result.$1.single.pixelCount, 3);
+    expect(result.$1.single.minX, 2);
+    expect(result.$1.single.maxX, 4);
+    expect(result.$1.single.centroidX, 3.0);
+    expect(result.$1.single.centroidY, 2.0);
+
+    expect(result.$2, isEmpty);
+
+    expect(result.$3, hasLength(1));
+    expect(result.$3.single.pixelCount, 3);
   });
 }

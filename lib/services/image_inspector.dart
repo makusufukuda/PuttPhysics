@@ -131,19 +131,15 @@ class ImageInspector {
     }
 
     final blobWatch = Stopwatch()..start();
-    final blobs = BlobAnalyzer.extractBlobs(
-      scanResult.mask,
+    final (blobs, yellowBlobs, redBlobs) = BlobAnalyzer.extractThreeMasks(
+      combinedMask: scanResult.mask,
+      yellowMask: scanResult.yellowMask,
+      redMask: scanResult.redMask,
       minimumPixelCount: _minimumBlobPixelCount,
-    );
-
-    final yellowBlobs = BlobAnalyzer.extractBlobs(
-      scanResult.yellowMask,
-      minimumPixelCount: _minimumBlobPixelCount,
-    );
-
-    final redBlobs = BlobAnalyzer.extractBlobs(
-      scanResult.redMask,
-      minimumPixelCount: _minimumBlobPixelCount,
+      minX: minX,
+      minY: minY,
+      maxX: maxX,
+      maxY: maxY,
     );
 
     blobWatch.stop();
@@ -175,10 +171,7 @@ class ImageInspector {
     }
 
     if (debugFrameIndex == 390) {
-      for (final entry in [
-        ('RED', redBlobs),
-        ('YELLOW', yellowBlobs),
-      ]) {
+      for (final entry in [('RED', redBlobs), ('YELLOW', yellowBlobs)]) {
         final color = entry.$1;
         final colorBlobs = entry.$2;
 
@@ -308,8 +301,7 @@ class ImageInspector {
             ? candidate.radius * 0.25
             : existing.radius * 0.25;
 
-        final radiusDifference =
-            (candidate.radius - existing.radius).abs();
+        final radiusDifference = (candidate.radius - existing.radius).abs();
 
         return distanceSquared <= tolerance * tolerance &&
             radiusDifference <= tolerance;
@@ -397,8 +389,7 @@ class ImageInspector {
     final width = maxX - minX + 1;
     final height = maxY - minY + 1;
 
-    if (width <= 0 || height <= 0 ||
-        width > 300 || height > 300) {
+    if (width <= 0 || height <= 0 || width > 300 || height > 300) {
       return null;
     }
 
@@ -425,5 +416,4 @@ class ImageInspector {
       isCombinedRedYellow: true,
     );
   }
-
 }

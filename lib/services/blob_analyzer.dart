@@ -2,18 +2,18 @@ import '../models/blob.dart';
 import 'color_mask.dart';
 
 class BlobAnalyzer {
-
   /// Extracts combined, yellow, and red blobs in one image traversal.
   /// Each mask retains independent 4-neighbor connectivity.
-  static (
-    List<Blob> combined,
-    List<Blob> yellow,
-    List<Blob> red,
-  ) extractThreeMasks({
+  static (List<Blob> combined, List<Blob> yellow, List<Blob> red)
+  extractThreeMasks({
     required ColorMask combinedMask,
     required ColorMask yellowMask,
     required ColorMask redMask,
     int minimumPixelCount = 1,
+    int? minX,
+    int? minY,
+    int? maxX,
+    int? maxY,
   }) {
     final width = combinedMask.width;
     final height = combinedMask.height;
@@ -34,34 +34,39 @@ class BlobAnalyzer {
     ];
     final results = [<Blob>[], <Blob>[], <Blob>[]];
 
-    for (var index = 0; index < length; index++) {
-      final x = index % width;
-      final y = index ~/ width;
+    final startX = (minX ?? 0).clamp(0, width);
+    final startY = (minY ?? 0).clamp(0, height);
+    final endX = (maxX ?? width).clamp(0, width);
+    final endY = (maxY ?? height).clamp(0, height);
 
-      for (var channel = 0; channel < 3; channel++) {
-        if (visited[channel][index] ||
-            !masks[channel].pixels[index]) {
-          continue;
-        }
+    for (var y = startY; y < endY; y++) {
+      for (var x = startX; x < endX; x++) {
+        final index = y * width + x;
 
-        final blob = _extractSingleBlob(
-          mask: masks[channel],
-          startX: x,
-          startY: y,
-          visited: visited[channel],
-        );
+        for (var channel = 0; channel < 3; channel++) {
+          if (visited[channel][index] || !masks[channel].pixels[index]) {
+            continue;
+          }
 
-        if (blob.pixelCount >= minimumPixelCount) {
-          results[channel].add(blob);
+          final blob = _extractSingleBlob(
+            mask: masks[channel],
+            startX: x,
+            startY: y,
+            visited: visited[channel],
+            roiMinX: startX,
+            roiMinY: startY,
+            roiMaxX: endX,
+            roiMaxY: endY,
+          );
+
+          if (blob.pixelCount >= minimumPixelCount) {
+            results[channel].add(blob);
+          }
         }
       }
     }
 
-    return (
-      results[0],
-      results[1],
-      results[2],
-    );
+    return (results[0], results[1], results[2]);
   }
 
   const BlobAnalyzer._();
@@ -100,6 +105,10 @@ class BlobAnalyzer {
     required int startX,
     required int startY,
     required List<bool> visited,
+    int roiMinX = 0,
+    int roiMinY = 0,
+    int? roiMaxX,
+    int? roiMaxY,
   }) {
     final queueX = <int>[startX];
     final queueY = <int>[startY];
@@ -137,10 +146,10 @@ class BlobAnalyzer {
         final nextX = x + direction.$1;
         final nextY = y + direction.$2;
 
-        if (nextX < 0 ||
-            nextX >= mask.width ||
-            nextY < 0 ||
-            nextY >= mask.height) {
+        if (nextX < roiMinX ||
+            nextX >= (roiMaxX ?? mask.width) ||
+            nextY < roiMinY ||
+            nextY >= (roiMaxY ?? mask.height)) {
           continue;
         }
 
