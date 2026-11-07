@@ -987,6 +987,7 @@ class _CameraScreenState extends State<CameraScreen>
 
       final analysisStopwatch = Stopwatch()..start();
       var imageInspectMicroseconds = 0;
+      var putterDetectMicroseconds = 0;
 
       await for (final frame in FrameExtractor.extractFrames(
         videoPath: videoPath,
@@ -1088,10 +1089,13 @@ class _CameraScreenState extends State<CameraScreen>
 
         _frameAnalysisCount++;
 
+        final putterDetectStopwatch = Stopwatch()..start();
         final putterCandidates = PutterDetector.detectDecoded(
           decodedImage,
           frameIndex: _frameAnalysisCount,
         );
+        putterDetectStopwatch.stop();
+        putterDetectMicroseconds += putterDetectStopwatch.elapsedMicroseconds;
 
         if (putterCandidates.isNotEmpty) {
           putterDetectedFrames++;
@@ -1300,6 +1304,11 @@ class _CameraScreenState extends State<CameraScreen>
       }
 
       analysisStopwatch.stop();
+      debugPrint(
+        'PUTTER DETECT TIMING '
+        'totalMs=${(putterDetectMicroseconds / 1000).toStringAsFixed(1)} '
+        'averageMs=${_frameAnalysisCount == 0 ? 0 : (putterDetectMicroseconds / 1000 / _frameAnalysisCount).toStringAsFixed(2)}',
+      );
       debugPrint(
         "IMAGE INSPECT TIMING totalMs=${(imageInspectMicroseconds / 1000).toStringAsFixed(1)} averageMs=${_frameAnalysisCount == 0 ? 0 : (imageInspectMicroseconds / 1000 / _frameAnalysisCount).toStringAsFixed(2)}",
       );
