@@ -136,7 +136,7 @@ class ImageInspector {
       );
     }
 
-    if (debugFrameIndex == 370) {
+    if ((debugFrameIndex == 370 || debugFrameIndex == 390)) {
       const ballX = 511;
       const ballY = 1324;
 
@@ -149,7 +149,7 @@ class ImageInspector {
 
         if (containsBall) {
           debugPrint(
-            'RED BALL BLOB frame=370 '
+            'RED BALL BLOB frame=$debugFrameIndex '
             'containsBall=$containsBall '
             '$blob',
           );
@@ -157,8 +157,27 @@ class ImageInspector {
       }
     }
 
-    final largestYellowBlob = _findLargestBlob(yellowBlobs);
-    final largestRedBlob = _findLargestBlob(redBlobs);
+    if (debugFrameIndex == 390) {
+      for (final entry in [
+        ('RED', redBlobs),
+        ('YELLOW', yellowBlobs),
+      ]) {
+        final color = entry.$1;
+        final colorBlobs = entry.$2;
+
+        for (final blob in colorBlobs) {
+          if (blob.centroidX >= 350 &&
+              blob.centroidX <= 700 &&
+              blob.centroidY >= 500 &&
+              blob.centroidY <= 1600) {
+            debugPrint(
+              'BALL REGION BLOB frame=390 '
+              'color=$color $blob',
+            );
+          }
+        }
+      }
+    }
 
     Blob? largestBlob;
 
@@ -177,7 +196,7 @@ class ImageInspector {
     ballCandidates.addAll(BlobFilter.filter(redBlobs));
     ballCandidates.addAll(BlobFilter.filter(yellowBlobs));
 
-    if (debugFrameIndex == 370) {
+    if ((debugFrameIndex == 370 || debugFrameIndex == 390)) {
       final redCandidates = BlobFilter.filter(
         redBlobs,
         debugFrameIndex: debugFrameIndex,
@@ -185,7 +204,7 @@ class ImageInspector {
 
       for (final candidate in redCandidates) {
         debugPrint(
-          'RED BALL CANDIDATE frame=370 '
+          'RED BALL CANDIDATE frame=$debugFrameIndex '
           'x=${candidate.centerX.toStringAsFixed(1)} '
           'y=${candidate.centerY.toStringAsFixed(1)} '
           'r=${candidate.radius.toStringAsFixed(1)} '
@@ -239,17 +258,54 @@ class ImageInspector {
       }
     }
 
-    final combinedCandidate = _createCombinedRedYellowCandidate(
-      redBlob: largestRedBlob,
-      yellowBlob: largestYellowBlob,
-    );
+    // 近接する赤・黄Blobを組み合わせる。
+    // 最大Blobだけでは、背景の大きな領域が選ばれる場合がある。
+    for (final redBlob in redBlobs) {
+      if (redBlob.pixelCount < 50) continue;
 
-    if (combinedCandidate != null) {
-      ballCandidates.add(combinedCandidate);
-      ballCandidates.sort((a, b) => b.confidence.compareTo(a.confidence));
+      for (final yellowBlob in yellowBlobs) {
+        if (yellowBlob.pixelCount < 50) continue;
+
+        final combinedCandidate = _createCombinedRedYellowCandidate(
+          redBlob: redBlob,
+          yellowBlob: yellowBlob,
+        );
+
+        if (combinedCandidate != null) {
+          ballCandidates.add(combinedCandidate);
+        }
+      }
     }
 
+    // 同じ物体から生成された重複候補を除去する。
     ballCandidates.sort((a, b) => b.confidence.compareTo(a.confidence));
+
+    final uniqueCandidates = <BallCandidate>[];
+
+    for (final candidate in ballCandidates) {
+      final isDuplicate = uniqueCandidates.any((existing) {
+        final dx = candidate.centerX - existing.centerX;
+        final dy = candidate.centerY - existing.centerY;
+        final distanceSquared = dx * dx + dy * dy;
+        final tolerance = candidate.radius < existing.radius
+            ? candidate.radius * 0.25
+            : existing.radius * 0.25;
+
+        final radiusDifference =
+            (candidate.radius - existing.radius).abs();
+
+        return distanceSquared <= tolerance * tolerance &&
+            radiusDifference <= tolerance;
+      });
+
+      if (!isDuplicate) {
+        uniqueCandidates.add(candidate);
+      }
+    }
+
+    ballCandidates
+      ..clear()
+      ..addAll(uniqueCandidates);
 
     final bestBallCandidate = ballCandidates.isEmpty
         ? null
@@ -331,7 +387,8 @@ class ImageInspector {
 
     final aspectRatio = width / height;
 
-    if (aspectRatio < 0.75 || aspectRatio > 1.35) {
+    // 横方向のモーションブラーを許容する。
+    if (aspectRatio < 0.75 || aspectRatio > 2.5) {
       return null;
     }
 
@@ -352,15 +409,4 @@ class ImageInspector {
     );
   }
 
-  static Blob? _findLargestBlob(List<Blob> blobs) {
-    Blob? largestBlob;
-
-    for (final blob in blobs) {
-      if (largestBlob == null || blob.pixelCount > largestBlob.pixelCount) {
-        largestBlob = blob;
-      }
-    }
-
-    return largestBlob;
-  }
 }
