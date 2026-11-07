@@ -934,6 +934,29 @@ class _CameraScreenState extends State<CameraScreen>
       return;
     }
 
+    final savedMarkers = _confirmedMarkerPositions;
+    final ballPosition = _confirmedBallPosition;
+
+    final markersReady =
+        savedMarkers != null &&
+        MarkerPosition.values.every((position) {
+          final point = savedMarkers[position.name];
+          return point != null && point.dx.isFinite && point.dy.isFinite;
+        });
+
+    final ballReady =
+        ballPosition != null &&
+        ballPosition.dx.isFinite &&
+        ballPosition.dy.isFinite;
+
+    if (!markersReady || !ballReady) {
+      _showMessage(
+        '動画解析には4点マーカーとボール初期位置の設定が必要です。'
+        '初期設定を完了してください。',
+      );
+      return;
+    }
+
     if (mounted) {
       setState(() {
         _isAnalyzingVideo = true;
