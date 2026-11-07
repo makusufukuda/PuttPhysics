@@ -336,6 +336,26 @@ class BallTracker {
         frameIndex: frameIndex,
       );
 
+      // Reject implausible motion-blur jumps at high frame rates.
+      final last = _lastTrackedBall;
+      final frameIntervalSeconds = last == null
+          ? 0.0
+          : (timestamp - last.timestamp).inMicroseconds /
+              Duration.microsecondsPerSecond;
+
+      if (candidate.isMotionBlur &&
+          _previousTrackedBall != null &&
+          frameIntervalSeconds > 0 &&
+          frameIntervalSeconds <= 0.012 &&
+          predictionScore < 0.10) {
+        DebugLog.print(
+          'TRACKER REJECT frame=$frameIndex '
+          'reason=high_fps_prediction '
+          'prediction=${predictionScore.toStringAsFixed(3)}',
+        );
+        continue;
+      }
+
       var movementLimit = candidate.isMotionBlur
           ? maximumMotionBlurMovementPixels
           : maximumMovementPixels;

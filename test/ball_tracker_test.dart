@@ -1084,5 +1084,46 @@ void main() {
       expect(third!.centerX, closeTo(328.5, 1.0));
       expect(third.centerY, closeTo(762.5, 1.0));
     });
+
+    test('rejects implausible motion blur jump at 120fps', () {
+      final tracker = BallTracker();
+
+      var result = tracker.lastTrackedBall;
+
+      for (var i = 0; i < 4; i++) {
+        result = tracker.track(
+          frameIndex: 394 + i,
+          timestamp: Duration(microseconds: i * 8333),
+          candidates: [
+            BallCandidate(
+              centerX: 400.0 + (i * 28.0),
+              centerY: 900.0,
+              radius: 20.0,
+              confidence: 0.9,
+              isCombinedRedYellow: true,
+            ),
+          ],
+        );
+      }
+
+      expect(result, isNotNull);
+
+      final jumped = tracker.track(
+        frameIndex: 398,
+        timestamp: const Duration(microseconds: 33332),
+        candidates: const [
+          BallCandidate(
+            centerX: 744.68,
+            centerY: 900.0,
+            radius: 20.0,
+            confidence: 0.8,
+            isMotionBlur: true,
+          ),
+        ],
+      );
+
+      expect(jumped, isNull);
+    });
+
   });
 }
