@@ -90,6 +90,13 @@ class ImageInspector {
       return null;
     }
 
+    return inspectDecoded(image, debugFrameIndex: debugFrameIndex);
+  }
+
+  static ImageInfoResult inspectDecoded(
+    img.Image image, {
+    int? debugFrameIndex,
+  }) {
     final centerX = image.width ~/ 2;
     final centerY = image.height ~/ 2;
     final centerPixel = image.getPixel(centerX, centerY);

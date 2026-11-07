@@ -19,6 +19,13 @@ class PutterDetector {
       return const [];
     }
 
+    return detectDecoded(image, frameIndex: frameIndex);
+  }
+
+  static List<PutterCandidate> detectDecoded(
+    img.Image image, {
+    int? frameIndex,
+  }) {
     final pinkMask = ColorMask(width: image.width, height: image.height);
 
     for (var y = 0; y < image.height; y++) {

@@ -969,17 +969,18 @@ class _CameraScreenState extends State<CameraScreen>
         videoPath: videoPath,
         duration: duration,
       )) {
+        final decodedImage = img.decodeImage(frame.imageBytes);
+        if (decodedImage == null) {
+          continue;
+        }
+
         final imageInspectStopwatch = Stopwatch()..start();
-        final imageInfo = ImageInspector.inspect(
-          frame.imageBytes,
+        final imageInfo = ImageInspector.inspectDecoded(
+          decodedImage,
           debugFrameIndex: DebugLog.verbose ? _frameAnalysisCount + 1 : null,
         );
         imageInspectStopwatch.stop();
         imageInspectMicroseconds += imageInspectStopwatch.elapsedMicroseconds;
-
-        if (imageInfo == null) {
-          continue;
-        }
 
         if (_frameAnalysisCount == 0) {
           final saved = _confirmedMarkerPositions;
@@ -1064,8 +1065,8 @@ class _CameraScreenState extends State<CameraScreen>
 
         _frameAnalysisCount++;
 
-        final putterCandidates = PutterDetector.detect(
-          frame.imageBytes,
+        final putterCandidates = PutterDetector.detectDecoded(
+          decodedImage,
           frameIndex: _frameAnalysisCount,
         );
 
