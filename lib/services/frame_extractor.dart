@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:video_thumbnail/video_thumbnail.dart';
 
@@ -64,6 +65,8 @@ class FrameExtractor {
     int quality = 95,
   }) async* {
     var readerOpened = false;
+    var frameReadCount = 0;
+    var frameReadMicroseconds = 0;
 
     try {
       final openResult = await _nativeFrameChannel
@@ -79,8 +82,10 @@ class FrameExtractor {
       readerOpened = true;
 
       while (true) {
+        final readWatch = Stopwatch()..start();
         final result = await _nativeFrameChannel
             .invokeMapMethod<String, Object?>('readNextFrame');
+        readWatch.stop();
 
         if (result == null) {
           throw StateError('Native frame reader returned null.');
@@ -97,12 +102,23 @@ class FrameExtractor {
           throw StateError('Native frame reader returned invalid frame data.');
         }
 
+        frameReadCount++;
+        frameReadMicroseconds += readWatch.elapsedMicroseconds;
+
         yield ExtractedVideoFrame(
           position: Duration(microseconds: ptsUs),
           imageBytes: imageBytes,
         );
       }
     } finally {
+      if (frameReadCount > 0) {
+        debugPrint(
+          'FRAME READ TIMING '
+          'frames=$frameReadCount '
+          'totalMs=${(frameReadMicroseconds / 1000).toStringAsFixed(1)} '
+          'averageMs=${(frameReadMicroseconds / 1000 / frameReadCount).toStringAsFixed(2)}',
+        );
+      }
       if (readerOpened) {
         try {
           await _nativeFrameChannel.invokeMethod<Object?>('closeFrameReader');
