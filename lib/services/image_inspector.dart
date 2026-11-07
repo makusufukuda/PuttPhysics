@@ -96,6 +96,10 @@ class ImageInspector {
   static ImageInfoResult inspectDecoded(
     img.Image image, {
     int? debugFrameIndex,
+    int? minX,
+    int? minY,
+    int? maxX,
+    int? maxY,
   }) {
     final centerX = image.width ~/ 2;
     final centerY = image.height ~/ 2;
@@ -112,7 +116,13 @@ class ImageInspector {
     );
 
     final colorWatch = Stopwatch()..start();
-    final scanResult = ColorScanner.scan(image);
+    final scanResult = ColorScanner.scan(
+      image,
+      minX: minX,
+      minY: minY,
+      maxX: maxX,
+      maxY: maxY,
+    );
     colorWatch.stop();
     if (debugFrameIndex != null && debugFrameIndex <= 20) {
       debugPrint(

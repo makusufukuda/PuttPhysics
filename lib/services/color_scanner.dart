@@ -7,7 +7,13 @@ import 'color_scan_result.dart';
 class ColorScanner {
   const ColorScanner._();
 
-  static ColorScanResult scan(img.Image image) {
+  static ColorScanResult scan(
+    img.Image image, {
+    int? minX,
+    int? minY,
+    int? maxX,
+    int? maxY,
+  }) {
     var yellowPixels = 0;
     var redPixels = 0;
 
@@ -17,8 +23,13 @@ class ColorScanner {
 
     final redMask = ColorMask(width: image.width, height: image.height);
 
-    for (var y = 0; y < image.height; y++) {
-      for (var x = 0; x < image.width; x++) {
+    final startX = (minX ?? 0).clamp(0, image.width);
+    final startY = (minY ?? 0).clamp(0, image.height);
+    final endX = (maxX ?? image.width).clamp(0, image.width);
+    final endY = (maxY ?? image.height).clamp(0, image.height);
+
+    for (var y = startY; y < endY; y++) {
+      for (var x = startX; x < endX; x++) {
         final pixel = image.getPixel(x, y);
 
         final hsv = ColorDetector.rgbToHsv(
