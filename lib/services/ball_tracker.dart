@@ -45,6 +45,34 @@ class BallTracker {
 
   TrackedBall? get lastTrackedBall => _lastTrackedBall;
 
+  /// Predicts the next ball center using native video timestamps (PTS).
+  /// Returns null until two valid tracked positions are available.
+  ({double x, double y})? predictPosition(Duration timestamp) {
+    final previous = _previousTrackedBall;
+    final last = _lastTrackedBall;
+
+    if (previous == null || last == null) {
+      return null;
+    }
+
+    final sampleUs =
+        (last.timestamp - previous.timestamp).inMicroseconds;
+    final futureUs = (timestamp - last.timestamp).inMicroseconds;
+
+    if (sampleUs <= 0 || futureUs <= 0) {
+      return null;
+    }
+
+    final ratio = futureUs / sampleUs;
+
+    return (
+      x: last.centerX +
+          (last.centerX - previous.centerX) * ratio,
+      y: last.centerY +
+          (last.centerY - previous.centerY) * ratio,
+    );
+  }
+
   void reset() {
     _previousTrackedBall = null;
     _lastTrackedBall = null;
@@ -270,11 +298,16 @@ class BallTracker {
       return 0.5;
     }
 
+    final prediction = predictPosition(timestamp);
+    if (prediction == null) {
+      return 0.5;
+    }
+
     final velocityX = (last.centerX - previous.centerX) / sampleTime;
     final velocityY = (last.centerY - previous.centerY) / sampleTime;
 
-    final predictedX = last.centerX + (velocityX * futureTime);
-    final predictedY = last.centerY + (velocityY * futureTime);
+    final predictedX = prediction.x;
+    final predictedY = prediction.y;
 
     final dx = candidate.centerX - predictedX;
     final dy = candidate.centerY - predictedY;

@@ -998,10 +998,45 @@ class _CameraScreenState extends State<CameraScreen>
           continue;
         }
 
+        // Dynamic ROI: include the last tracked ball and its PTS prediction.
+        // Expand the search after misses to allow reacquisition.
+        final lastBall = _ballTracker.lastTrackedBall;
+        final predictedBall = _ballTracker.predictPosition(frame.position);
+
+        final roiBaseX = lastBall?.centerX ?? ballPosition.dx;
+        final roiBaseY = lastBall?.centerY ?? ballPosition.dy;
+
+        final missedFrames = _ballTracker.missedFrameCount;
+        final roiMargin = 400.0 + (missedFrames * 150.0);
+
+        final roiMinX = [
+          roiBaseX,
+          if (predictedBall != null) predictedBall.x,
+        ].reduce((a, b) => a < b ? a : b) - roiMargin;
+
+        final roiMaxX = [
+          roiBaseX,
+          if (predictedBall != null) predictedBall.x,
+        ].reduce((a, b) => a > b ? a : b) + roiMargin;
+
+        final roiMinY = [
+          roiBaseY,
+          if (predictedBall != null) predictedBall.y,
+        ].reduce((a, b) => a < b ? a : b) - roiMargin;
+
+        final roiMaxY = [
+          roiBaseY,
+          if (predictedBall != null) predictedBall.y,
+        ].reduce((a, b) => a > b ? a : b) + roiMargin;
+
         final imageInspectStopwatch = Stopwatch()..start();
         final imageInfo = ImageInspector.inspectDecoded(
           decodedImage,
           debugFrameIndex: DebugLog.verbose ? _frameAnalysisCount + 1 : null,
+          minX: roiMinX.floor().clamp(0, decodedImage.width),
+          minY: roiMinY.floor().clamp(0, decodedImage.height),
+          maxX: roiMaxX.ceil().clamp(0, decodedImage.width),
+          maxY: roiMaxY.ceil().clamp(0, decodedImage.height),
         );
         imageInspectStopwatch.stop();
         imageInspectMicroseconds += imageInspectStopwatch.elapsedMicroseconds;
