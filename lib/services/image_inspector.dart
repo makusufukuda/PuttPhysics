@@ -136,6 +136,27 @@ class ImageInspector {
       );
     }
 
+    if (debugFrameIndex == 370) {
+      const ballX = 511;
+      const ballY = 1324;
+
+      for (final blob in redBlobs) {
+        final containsBall =
+            blob.minX <= ballX &&
+            ballX <= blob.maxX &&
+            blob.minY <= ballY &&
+            ballY <= blob.maxY;
+
+        if (containsBall) {
+          debugPrint(
+            'RED BALL BLOB frame=370 '
+            'containsBall=$containsBall '
+            '$blob',
+          );
+        }
+      }
+    }
+
     final largestYellowBlob = _findLargestBlob(yellowBlobs);
     final largestRedBlob = _findLargestBlob(redBlobs);
 
@@ -151,6 +172,27 @@ class ImageInspector {
       blobs,
       debugFrameIndex: debugFrameIndex,
     );
+
+    // 色別のBlobもボール候補として評価する。
+    ballCandidates.addAll(BlobFilter.filter(redBlobs));
+    ballCandidates.addAll(BlobFilter.filter(yellowBlobs));
+
+    if (debugFrameIndex == 370) {
+      final redCandidates = BlobFilter.filter(
+        redBlobs,
+        debugFrameIndex: debugFrameIndex,
+      );
+
+      for (final candidate in redCandidates) {
+        debugPrint(
+          'RED BALL CANDIDATE frame=370 '
+          'x=${candidate.centerX.toStringAsFixed(1)} '
+          'y=${candidate.centerY.toStringAsFixed(1)} '
+          'r=${candidate.radius.toStringAsFixed(1)} '
+          'confidence=${candidate.confidence.toStringAsFixed(3)}',
+        );
+      }
+    }
 
     if (debugFrameIndex != null && debugFrameIndex <= 20) {
       for (var i = 0; i < ballCandidates.length; i++) {
@@ -206,6 +248,8 @@ class ImageInspector {
       ballCandidates.add(combinedCandidate);
       ballCandidates.sort((a, b) => b.confidence.compareTo(a.confidence));
     }
+
+    ballCandidates.sort((a, b) => b.confidence.compareTo(a.confidence));
 
     final bestBallCandidate = ballCandidates.isEmpty
         ? null
@@ -280,7 +324,8 @@ class ImageInspector {
     final width = maxX - minX + 1;
     final height = maxY - minY + 1;
 
-    if (width <= 0 || height <= 0) {
+    if (width <= 0 || height <= 0 ||
+        width > 300 || height > 300) {
       return null;
     }
 

@@ -1,11 +1,13 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:image/image.dart' as img;
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show MethodChannel, PlatformException;
 import 'package:video_player/video_player.dart';
 
+import '../services/color_detector.dart';
 import '../services/frame_extractor.dart';
 import '../services/debug_log.dart';
 import '../services/image_inspector.dart';
@@ -830,6 +832,36 @@ class _CameraScreenState extends State<CameraScreen>
       final confirmedMarkers = confirmedSetup.markerPositions;
       _confirmedMarkerPositions = Map<String, Offset>.from(confirmedMarkers);
       _confirmedBallPosition = confirmedSetup.ballPosition;
+
+      if (_confirmedBallPosition != null) {
+        final image = img.decodeImage(imageBytes);
+        if (image != null) {
+          final x = _confirmedBallPosition!.dx.round()
+              .clamp(0, image.width - 1);
+          final y = _confirmedBallPosition!.dy.round()
+              .clamp(0, image.height - 1);
+          final pixel = image.getPixel(x, y);
+          final red = pixel.r.toInt();
+          final green = pixel.g.toInt();
+          final blue = pixel.b.toInt();
+          final hsv = ColorDetector.rgbToHsv(
+            red: red,
+            green: green,
+            blue: blue,
+          );
+
+          debugPrint(
+            'CONFIRMED BALL COLOR '
+            'x=$x y=$y '
+            'RGB=$red,$green,$blue '
+            'HSV=${hsv.hue.toStringAsFixed(1)},'
+            '${hsv.saturation.toStringAsFixed(3)},'
+            '${hsv.value.toStringAsFixed(3)} '
+            'isRed=${ColorDetector.isRed(hsv)} '
+            'isYellow=${ColorDetector.isYellow(hsv)}',
+          );
+        }
+      }
 
       debugPrint('CONFIRMED MARKERS count=${confirmedMarkers.length}');
       for (final entry in confirmedMarkers.entries) {
