@@ -109,6 +109,7 @@ class BlobFilter {
         blob.fillRatio >= minimumFillRatio;
 
     final isMotionBlur =
+        !isNormalBall &&
         blob.width >= minimumMotionBlurWidth &&
         blob.width <= maximumMotionBlurWidth &&
         blob.height >= minimumMotionBlurHeight &&
