@@ -995,6 +995,11 @@ class _CameraScreenState extends State<CameraScreen>
         duration: duration,
         useBGRA: true,
       )) {
+        final videoFrameIndex = frame.frameIndex;
+        if (videoFrameIndex == null) {
+          throw StateError('Native video frame index is missing.');
+        }
+
         final imageDecodeStopwatch = Stopwatch()..start();
         final decodedImage = FrameExtractor.decodeFrame(frame);
         imageDecodeStopwatch.stop();
@@ -1052,7 +1057,7 @@ class _CameraScreenState extends State<CameraScreen>
         final imageInspectStopwatch = Stopwatch()..start();
         final imageInfo = ImageInspector.inspectDecoded(
           decodedImage,
-          debugFrameIndex: DebugLog.verbose ? _frameAnalysisCount + 1 : null,
+          debugFrameIndex: DebugLog.verbose ? videoFrameIndex : null,
           minX: roiMinX.floor().clamp(0, decodedImage.width),
           minY: roiMinY.floor().clamp(0, decodedImage.height),
           maxX: roiMaxX.ceil().clamp(0, decodedImage.width),
@@ -1147,7 +1152,7 @@ class _CameraScreenState extends State<CameraScreen>
         final putterDetectStopwatch = Stopwatch()..start();
         final putterCandidates = PutterDetector.detectDecoded(
           decodedImage,
-          frameIndex: _frameAnalysisCount,
+          frameIndex: videoFrameIndex,
         );
         putterDetectStopwatch.stop();
         putterDetectMicroseconds += putterDetectStopwatch.elapsedMicroseconds;
@@ -1159,7 +1164,7 @@ class _CameraScreenState extends State<CameraScreen>
         }
 
         final trackedPutter = _putterTracker.track(
-          frameIndex: _frameAnalysisCount,
+          frameIndex: videoFrameIndex,
           timestamp: frame.position,
           candidates: putterCandidates,
         );
@@ -1246,7 +1251,7 @@ class _CameraScreenState extends State<CameraScreen>
             : imageInfo.ballCandidates;
 
         final trackedBall = _ballTracker.track(
-          frameIndex: _frameAnalysisCount,
+          frameIndex: videoFrameIndex,
           timestamp: frame.position,
           candidates: ballCandidates,
           initialPositionX: _confirmedBallPosition?.dx,

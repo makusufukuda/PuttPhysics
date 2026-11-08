@@ -7,6 +7,7 @@ class ExtractedVideoFrame {
   const ExtractedVideoFrame({
     required this.position,
     required this.imageBytes,
+    this.frameIndex,
     this.pixelFormat = 'JPEG',
     this.width,
     this.height,
@@ -15,6 +16,7 @@ class ExtractedVideoFrame {
 
   final Duration position;
   final Uint8List imageBytes;
+  final int? frameIndex;
   final String pixelFormat;
   final int? width;
   final int? height;
@@ -144,6 +146,7 @@ class FrameExtractor {
         }
 
         final ptsUs = result['ptsUs'];
+        final nativeFrameIndex = result['frameIndex'];
         final imageBytes = result['imageBytes'];
         final pixelFormat = result['pixelFormat'];
         final width = result['width'];
@@ -171,6 +174,7 @@ class FrameExtractor {
         yield ExtractedVideoFrame(
           position: Duration(microseconds: ptsUs),
           imageBytes: imageBytes,
+          frameIndex: nativeFrameIndex is int ? nativeFrameIndex : null,
           pixelFormat: pixelFormat is String ? pixelFormat : 'JPEG',
           width: width is int ? width : null,
           height: height is int ? height : null,

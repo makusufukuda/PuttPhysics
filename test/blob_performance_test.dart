@@ -1,3 +1,4 @@
+// ignore_for_file: avoid_print
 import 'package:flutter_test/flutter_test.dart';
 import 'package:putt_physics_v1/services/blob_analyzer.dart';
 import 'package:putt_physics_v1/services/color_mask.dart';

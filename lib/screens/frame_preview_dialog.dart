@@ -191,6 +191,7 @@ class _FramePreviewDialogState extends State<FramePreviewDialog> {
     return '$minutes:$seconds.$milliseconds';
   }
 
+// ignore: unused_element
   String _formatPercent(double ratio) {
     return '${(ratio * 100).toStringAsFixed(3)}%';
   }
@@ -372,6 +373,7 @@ class _FramePreviewDialogState extends State<FramePreviewDialog> {
     }
   }
 
+// ignore: unused_element
   void _inspectTappedPixel(Offset localPosition, Size displaySize) {
     final x = (localPosition.dx / displaySize.width * widget.imageWidth)
         .floor()
@@ -848,6 +850,7 @@ class _BallCandidatePainter extends CustomPainter {
   }
 }
 
+// ignore: unused_element
 class _AllBallCandidatePainter extends CustomPainter {
   const _AllBallCandidatePainter({
     required this.sourceWidth,
