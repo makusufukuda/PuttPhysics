@@ -15,19 +15,22 @@ final class NativeFrameExtractor {
         let context: CIContext
         let jpegQuality: CGFloat
         let preferredTransform: CGAffineTransform
+        let useBGRA: Bool
         var frameIndex: Int
 
         init(
             reader: AVAssetReader,
             output: AVAssetReaderTrackOutput,
             jpegQuality: CGFloat,
-            preferredTransform: CGAffineTransform
+            preferredTransform: CGAffineTransform,
+            useBGRA: Bool = false
         ) {
             self.reader = reader
             self.output = output
             self.context = CIContext()
             self.jpegQuality = jpegQuality
             self.preferredTransform = preferredTransform
+            self.useBGRA = useBGRA
             self.frameIndex = 0
         }
     }
@@ -268,6 +271,7 @@ final class NativeFrameExtractor {
                 openFrameReader(
                     videoPath: videoPath,
                     quality: quality,
+                    useBGRA: arguments["useBGRA"] as? Bool ?? false,
                     result: result
                 )
 
@@ -328,6 +332,7 @@ final class NativeFrameExtractor {
     private static func openFrameReader(
         videoPath: String,
         quality: Int,
+        useBGRA: Bool,
         result: @escaping FlutterResult
     ) {
         do {
@@ -398,7 +403,8 @@ final class NativeFrameExtractor {
                 output: output,
                 jpegQuality:
                     CGFloat(clampedQuality) / 100.0,
-                preferredTransform: track.preferredTransform
+                preferredTransform: track.preferredTransform,
+                useBGRA: useBGRA
             )
 
             result([
@@ -506,6 +512,69 @@ final class NativeFrameExtractor {
                     details: currentFrameIndex
                 )
             )
+            return
+        }
+
+        if session.useBGRA {
+            let width = cgImage.width
+            let height = cgImage.height
+            let bytesPerRow = width * 4
+
+            var pixels = [UInt8](
+                repeating: 0,
+                count: bytesPerRow * height
+            )
+
+            let rendered = pixels.withUnsafeMutableBytes { buffer -> Bool in
+                guard let base = buffer.baseAddress,
+                      let bitmap = CGContext(
+                        data: base,
+                        width: width,
+                        height: height,
+                        bitsPerComponent: 8,
+                        bytesPerRow: bytesPerRow,
+                        space: CGColorSpaceCreateDeviceRGB(),
+                        bitmapInfo:
+                            CGBitmapInfo.byteOrder32Little.rawValue |
+                            CGImageAlphaInfo.premultipliedFirst.rawValue
+                      )
+                else {
+                    return false
+                }
+
+                bitmap.draw(
+                    cgImage,
+                    in: CGRect(
+                        x: 0,
+                        y: 0,
+                        width: width,
+                        height: height
+                    )
+                )
+                return true
+            }
+
+            guard rendered else {
+                result(FlutterError(
+                    code: "BGRA_RENDER_FAILED",
+                    message: "Could not render BGRA image",
+                    details: currentFrameIndex
+                ))
+                return
+            }
+
+            result([
+                "done": false,
+                "frameIndex": currentFrameIndex,
+                "ptsUs": ptsMicroseconds,
+                "width": width,
+                "height": height,
+                "bytesPerRow": bytesPerRow,
+                "pixelFormat": "BGRA8888",
+                "imageBytes": FlutterStandardTypedData(
+                    bytes: Data(pixels)
+                )
+            ])
             return
         }
 

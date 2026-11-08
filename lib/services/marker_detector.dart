@@ -18,6 +18,10 @@ class MarkerDetector {
       return const [];
     }
 
+    return detectDecoded(image);
+  }
+
+  static List<MarkerCandidate> detectDecoded(img.Image image) {
     final blueMask = ColorMask(width: image.width, height: image.height);
 
     for (var y = 0; y < image.height; y++) {

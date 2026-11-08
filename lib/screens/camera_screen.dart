@@ -988,14 +988,34 @@ class _CameraScreenState extends State<CameraScreen>
       final analysisStopwatch = Stopwatch()..start();
       var imageInspectMicroseconds = 0;
       var putterDetectMicroseconds = 0;
+      var imageDecodeMicroseconds = 0;
 
       await for (final frame in FrameExtractor.extractFrames(
         videoPath: videoPath,
         duration: duration,
+        useBGRA: true,
       )) {
-        final decodedImage = img.decodeImage(frame.imageBytes);
+        final imageDecodeStopwatch = Stopwatch()..start();
+        final decodedImage = FrameExtractor.decodeFrame(frame);
+        imageDecodeStopwatch.stop();
+        imageDecodeMicroseconds += imageDecodeStopwatch.elapsedMicroseconds;
+
         if (decodedImage == null) {
           continue;
+        }
+
+        // BGRA diagnostic: save only the first decoded frame.
+        if (_frameAnalysisCount == 0) {
+          final diagnosticPath =
+              '${Directory.systemTemp.parent.path}/Documents/puttphysics_bgra_first_frame.png';
+          final pngBytes = img.encodePng(decodedImage);
+          await File(diagnosticPath).writeAsBytes(pngBytes);
+          debugPrint('BGRA DIAGNOSTIC PNG path=$diagnosticPath');
+          debugPrint(
+            'BGRA DIAGNOSTIC SIZE '
+            'width=${decodedImage.width} '
+            'height=${decodedImage.height}',
+          );
         }
 
         // Dynamic ROI: include the last tracked ball and its PTS prediction.
@@ -1059,7 +1079,7 @@ class _CameraScreenState extends State<CameraScreen>
                       pixelCount: 1,
                     ),
                 ]
-              : MarkerDetector.detect(frame.imageBytes);
+              : MarkerDetector.detectDecoded(decodedImage);
 
           debugPrint(
             'CALIBRATION MARKER SOURCE '
@@ -1180,7 +1200,7 @@ class _CameraScreenState extends State<CameraScreen>
           'best=${putterCandidates.isEmpty ? null : putterCandidates.first}',
         );
 
-        if (_frameAnalysisCount >= 370 && _frameAnalysisCount <= 380) {
+        if (_frameAnalysisCount >= 370 && _frameAnalysisCount <= 395) {
           DebugLog.print(
             'INITIAL CANDIDATES '
             'frame=$_frameAnalysisCount '
@@ -1339,6 +1359,11 @@ class _CameraScreenState extends State<CameraScreen>
       }
 
       analysisStopwatch.stop();
+      debugPrint(
+        'IMAGE DECODE TIMING '
+        'totalMs=${(imageDecodeMicroseconds / 1000).toStringAsFixed(1)} '
+        'averageMs=${_frameAnalysisCount == 0 ? 0 : (imageDecodeMicroseconds / 1000 / _frameAnalysisCount).toStringAsFixed(2)}',
+      );
       debugPrint(
         'PUTTER DETECT TIMING '
         'totalMs=${(putterDetectMicroseconds / 1000).toStringAsFixed(1)} '

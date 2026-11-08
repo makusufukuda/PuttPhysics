@@ -1,16 +1,59 @@
 import 'package:flutter/foundation.dart';
+import 'package:image/image.dart' as img;
 import 'package:flutter/services.dart';
 import 'package:video_thumbnail/video_thumbnail.dart';
 
 class ExtractedVideoFrame {
-  const ExtractedVideoFrame({required this.position, required this.imageBytes});
+  const ExtractedVideoFrame({
+    required this.position,
+    required this.imageBytes,
+    this.pixelFormat = 'JPEG',
+    this.width,
+    this.height,
+    this.bytesPerRow,
+  });
 
   final Duration position;
   final Uint8List imageBytes;
+  final String pixelFormat;
+  final int? width;
+  final int? height;
+  final int? bytesPerRow;
 }
 
 class FrameExtractor {
   const FrameExtractor._();
+
+  static img.Image? decodeFrame(ExtractedVideoFrame frame) {
+    if (frame.pixelFormat == 'JPEG') {
+      return img.decodeImage(frame.imageBytes);
+    }
+
+    if (frame.pixelFormat == 'BGRA8888') {
+      final width = frame.width;
+      final height = frame.height;
+      final bytesPerRow = frame.bytesPerRow;
+
+      if (width == null || height == null || bytesPerRow == null ||
+          width <= 0 || height <= 0 ||
+          bytesPerRow < width * 4 ||
+          frame.imageBytes.lengthInBytes != bytesPerRow * height) {
+        throw StateError('Invalid BGRA frame data.');
+      }
+
+      return img.Image.fromBytes(
+        width: width,
+        height: height,
+        bytes: frame.imageBytes.buffer,
+        bytesOffset: frame.imageBytes.offsetInBytes,
+        numChannels: 4,
+        rowStride: bytesPerRow,
+        order: img.ChannelOrder.bgra,
+      );
+    }
+
+    throw StateError('Unsupported pixel format: ${frame.pixelFormat}');
+  }
 
   static const MethodChannel _nativeFrameChannel = MethodChannel(
     'com.chainaflower.puttphysics/frame_extractor',
@@ -63,6 +106,7 @@ class FrameExtractor {
     double framesPerSecond = 30.0,
     int maxWidth = 1280,
     int quality = 95,
+    bool useBGRA = false,
   }) async* {
     var readerOpened = false;
     var frameReadCount = 0;
@@ -72,7 +116,11 @@ class FrameExtractor {
       final openResult = await _nativeFrameChannel
           .invokeMapMethod<String, Object?>(
             'openFrameReader',
-            <String, Object?>{'videoPath': videoPath, 'quality': quality},
+            <String, Object?>{
+              'videoPath': videoPath,
+              'quality': quality,
+              'useBGRA': useBGRA,
+            },
           );
 
       if (openResult == null || openResult['ok'] != true) {
@@ -97,9 +145,24 @@ class FrameExtractor {
 
         final ptsUs = result['ptsUs'];
         final imageBytes = result['imageBytes'];
+        final pixelFormat = result['pixelFormat'];
+        final width = result['width'];
+        final height = result['height'];
+        final bytesPerRow = result['bytesPerRow'];
 
         if (ptsUs is! int || imageBytes is! Uint8List) {
           throw StateError('Native frame reader returned invalid frame data.');
+        }
+
+        if (pixelFormat == 'BGRA8888' &&
+            (width is! int ||
+                height is! int ||
+                bytesPerRow is! int ||
+                width <= 0 ||
+                height <= 0 ||
+                bytesPerRow < width * 4 ||
+                imageBytes.lengthInBytes != bytesPerRow * height)) {
+          throw StateError('Invalid BGRA frame dimensions or data.');
         }
 
         frameReadCount++;
@@ -108,6 +171,10 @@ class FrameExtractor {
         yield ExtractedVideoFrame(
           position: Duration(microseconds: ptsUs),
           imageBytes: imageBytes,
+          pixelFormat: pixelFormat is String ? pixelFormat : 'JPEG',
+          width: width is int ? width : null,
+          height: height is int ? height : null,
+          bytesPerRow: bytesPerRow is int ? bytesPerRow : null,
         );
       }
     } finally {

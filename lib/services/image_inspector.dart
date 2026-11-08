@@ -170,7 +170,9 @@ class ImageInspector {
       }
     }
 
-    if (debugFrameIndex == 390) {
+    if (debugFrameIndex != null &&
+        debugFrameIndex >= 388 &&
+        debugFrameIndex <= 391) {
       for (final entry in [('RED', redBlobs), ('YELLOW', yellowBlobs)]) {
         final color = entry.$1;
         final colorBlobs = entry.$2;
@@ -181,7 +183,7 @@ class ImageInspector {
               blob.centroidY >= 500 &&
               blob.centroidY <= 1600) {
             debugPrint(
-              'BALL REGION BLOB frame=390 '
+              'BALL REGION BLOB frame=$debugFrameIndex '
               'color=$color $blob',
             );
           }
