@@ -43,6 +43,8 @@ class BallTracker {
 
   int get missedFrameCount => _missedFrameCount;
 
+  bool get movementStarted => _movementStarted;
+
   TrackedBall? get lastTrackedBall => _lastTrackedBall;
 
   /// Predicts the next ball center using native video timestamps (PTS).

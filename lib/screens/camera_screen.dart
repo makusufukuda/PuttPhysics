@@ -1149,61 +1149,64 @@ class _CameraScreenState extends State<CameraScreen>
 
         _frameAnalysisCount++;
 
-        final putterDetectStopwatch = Stopwatch()..start();
-        final putterCandidates = PutterDetector.detectDecoded(
-          decodedImage,
-          frameIndex: videoFrameIndex,
-        );
-        putterDetectStopwatch.stop();
-        putterDetectMicroseconds += putterDetectStopwatch.elapsedMicroseconds;
+        if (!_ballTracker.movementStarted) {
+          final putterDetectStopwatch = Stopwatch()..start();
+          final putterCandidates = PutterDetector.detectDecoded(
+            decodedImage,
+            frameIndex: videoFrameIndex,
+          );
+          putterDetectStopwatch.stop();
+          putterDetectMicroseconds += putterDetectStopwatch.elapsedMicroseconds;
 
-        if (putterCandidates.isNotEmpty) {
-          putterDetectedFrames++;
-        } else {
-          putterMissedFrameIndices.add(_frameAnalysisCount);
-        }
-
-        final trackedPutter = _putterTracker.track(
-          frameIndex: videoFrameIndex,
-          timestamp: frame.position,
-          candidates: putterCandidates,
-        );
-
-        if (trackedPutter == null && putterCandidates.isNotEmpty) {
-          putterTrackingFailedIndices.add(_frameAnalysisCount);
-        }
-
-        if (trackedPutter != null) {
-          _putterTrackingSession.add(trackedPutter);
-          putterTrackedFrames++;
-          putterCurrentStreak++;
-          putterFirstFrame ??= _frameAnalysisCount;
-          putterLastFrame = _frameAnalysisCount;
-
-          if (putterCurrentStreak > putterLongestStreak) {
-            putterLongestStreak = putterCurrentStreak;
+          if (putterCandidates.isNotEmpty) {
+            putterDetectedFrames++;
+          } else {
+            putterMissedFrameIndices.add(_frameAnalysisCount);
           }
-        } else {
-          if (putterCurrentStreak > 0) {
-            putterTrackingGaps++;
+
+          final trackedPutter = _putterTracker.track(
+            frameIndex: videoFrameIndex,
+            timestamp: frame.position,
+            candidates: putterCandidates,
+          );
+
+          if (trackedPutter == null && putterCandidates.isNotEmpty) {
+            putterTrackingFailedIndices.add(_frameAnalysisCount);
           }
-          putterCurrentStreak = 0;
+
+          if (trackedPutter != null) {
+            _putterTrackingSession.add(trackedPutter);
+            putterTrackedFrames++;
+            putterCurrentStreak++;
+            putterFirstFrame ??= _frameAnalysisCount;
+            putterLastFrame = _frameAnalysisCount;
+
+            if (putterCurrentStreak > putterLongestStreak) {
+              putterLongestStreak = putterCurrentStreak;
+            }
+          } else {
+            if (putterCurrentStreak > 0) {
+              putterTrackingGaps++;
+            }
+            putterCurrentStreak = 0;
+          }
+
+          DebugLog.print(
+            'AUTO PUTTER TRACKING '
+            'frame=$_frameAnalysisCount '
+            'time=${frame.position.inMilliseconds}ms '
+            'result=$trackedPutter',
+          );
+
+          DebugLog.print(
+            'AUTO PUTTER DETECTION '
+            'frame=$_frameAnalysisCount '
+            'time=${frame.position.inMilliseconds}ms '
+            'count=${putterCandidates.length} '
+            'best=${putterCandidates.isEmpty ? null : putterCandidates.first}',
+          );
+
         }
-
-        DebugLog.print(
-          'AUTO PUTTER TRACKING '
-          'frame=$_frameAnalysisCount '
-          'time=${frame.position.inMilliseconds}ms '
-          'result=$trackedPutter',
-        );
-
-        DebugLog.print(
-          'AUTO PUTTER DETECTION '
-          'frame=$_frameAnalysisCount '
-          'time=${frame.position.inMilliseconds}ms '
-          'count=${putterCandidates.length} '
-          'best=${putterCandidates.isEmpty ? null : putterCandidates.first}',
-        );
 
         if (_frameAnalysisCount >= 370 && _frameAnalysisCount <= 395) {
           DebugLog.print(
