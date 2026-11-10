@@ -71,13 +71,25 @@ class BlobAnalyzer {
 
   const BlobAnalyzer._();
 
-  static List<Blob> extractBlobs(ColorMask mask, {int minimumPixelCount = 1}) {
+  static List<Blob> extractBlobs(
+    ColorMask mask, {
+    int minimumPixelCount = 1,
+    int? minX,
+    int? minY,
+    int? maxX,
+    int? maxY,
+  }) {
     final visited = List<bool>.filled(mask.width * mask.height, false);
 
     final blobs = <Blob>[];
 
-    for (var y = 0; y < mask.height; y++) {
-      for (var x = 0; x < mask.width; x++) {
+    final startX = (minX ?? 0).clamp(0, mask.width);
+    final startY = (minY ?? 0).clamp(0, mask.height);
+    final endX = (maxX ?? mask.width).clamp(0, mask.width);
+    final endY = (maxY ?? mask.height).clamp(0, mask.height);
+
+    for (var y = startY; y < endY; y++) {
+      for (var x = startX; x < endX; x++) {
         final index = y * mask.width + x;
 
         if (visited[index] || !mask.pixels[index]) {
@@ -89,6 +101,10 @@ class BlobAnalyzer {
           startX: x,
           startY: y,
           visited: visited,
+          roiMinX: startX,
+          roiMinY: startY,
+          roiMaxX: endX,
+          roiMaxY: endY,
         );
 
         if (blob.pixelCount >= minimumPixelCount) {

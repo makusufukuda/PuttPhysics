@@ -195,4 +195,35 @@ void main() {
     expect(result.$3, hasLength(1));
     expect(result.$3.single.pixelCount, 3);
   });
+
+  test('single-mask ROI limits blobs and preserves image coordinates', () {
+    final mask = ColorMask(width: 10, height: 6);
+
+    // This blob crosses the left and right ROI boundaries.
+    for (var x = 1; x <= 7; x++) {
+      mask.setPixel(x, 3, true);
+    }
+
+    // This blob is entirely outside the ROI.
+    mask.setPixel(8, 5, true);
+
+    final blobs = BlobAnalyzer.extractBlobs(
+      mask,
+      minX: 3,
+      minY: 2,
+      maxX: 7,
+      maxY: 5,
+    );
+
+    expect(blobs, hasLength(1));
+
+    final blob = blobs.single;
+    expect(blob.pixelCount, 4);
+    expect(blob.minX, 3);
+    expect(blob.maxX, 6);
+    expect(blob.minY, 3);
+    expect(blob.maxY, 3);
+    expect(blob.centroidX, 4.5);
+    expect(blob.centroidY, 3.0);
+  });
 }

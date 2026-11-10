@@ -1150,10 +1150,19 @@ class _CameraScreenState extends State<CameraScreen>
         _frameAnalysisCount++;
 
         if (!_ballTracker.movementStarted) {
+          // Search the near side of the initial ball position.
+          // Keep a safety margin toward the far side for impact detection.
+          const putterRoiMargin = 200.0;
+          final putterRoiMinY =
+              (ballPosition.dy - putterRoiMargin)
+                  .floor()
+                  .clamp(0, decodedImage.height);
+
           final putterDetectStopwatch = Stopwatch()..start();
           final putterCandidates = PutterDetector.detectDecoded(
             decodedImage,
             frameIndex: videoFrameIndex,
+            minY: putterRoiMinY,
           );
           putterDetectStopwatch.stop();
           putterDetectMicroseconds += putterDetectStopwatch.elapsedMicroseconds;
