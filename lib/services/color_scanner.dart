@@ -32,14 +32,28 @@ class ColorScanner {
       for (var x = startX; x < endX; x++) {
         final pixel = image.getPixel(x, y);
 
-        final hsv = ColorDetector.rgbToHsv(
-          red: pixel.r.toInt(),
-          green: pixel.g.toInt(),
-          blue: pixel.b.toInt(),
-        );
+        final red = pixel.r.toInt();
+        final green = pixel.g.toInt();
+        final blue = pixel.b.toInt();
 
-        final isYellow = ColorDetector.isYellow(hsv);
-        final isRed = ColorDetector.isRed(hsv);
+        // 明度が0.25未満なら赤・黄のどちらにも該当しない。
+        final isTooDark = red < 64 && green < 64 && blue < 64;
+
+        final bool isYellow;
+        final bool isRed;
+
+        if (isTooDark) {
+          isYellow = false;
+          isRed = false;
+        } else {
+          final hsv = ColorDetector.rgbToHsv(
+            red: red,
+            green: green,
+            blue: blue,
+          );
+          isYellow = ColorDetector.isYellow(hsv);
+          isRed = ColorDetector.isRed(hsv);
+        }
 
         if (isYellow) {
           yellowPixels++;
