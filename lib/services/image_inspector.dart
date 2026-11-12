@@ -126,7 +126,11 @@ class ImageInspector {
     colorWatch.stop();
     if (debugFrameIndex != null && debugFrameIndex <= 20) {
       debugPrint(
-        "COLOR SCAN TIMING frame=$debugFrameIndex ms=${(colorWatch.elapsedMicroseconds / 1000).toStringAsFixed(2)}",
+        "COLOR SCAN TIMING frame=$debugFrameIndex "
+        "ms=${(colorWatch.elapsedMicroseconds / 1000).toStringAsFixed(2)} "
+        "scanned=${scanResult.scannedPixels} "
+        "skippedDark=${scanResult.skippedDarkPixels} "
+        "skippedPercent=${(scanResult.skippedDarkRatio * 100).toStringAsFixed(1)}%",
       );
     }
 

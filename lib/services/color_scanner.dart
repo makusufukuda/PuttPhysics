@@ -16,6 +16,8 @@ class ColorScanner {
   }) {
     var yellowPixels = 0;
     var redPixels = 0;
+    var scannedPixels = 0;
+    var skippedDarkPixels = 0;
 
     final mask = ColorMask(width: image.width, height: image.height);
 
@@ -31,6 +33,7 @@ class ColorScanner {
     for (var y = startY; y < endY; y++) {
       for (var x = startX; x < endX; x++) {
         final pixel = image.getPixel(x, y);
+        scannedPixels++;
 
         final red = pixel.r.toInt();
         final green = pixel.g.toInt();
@@ -43,6 +46,7 @@ class ColorScanner {
         final bool isRed;
 
         if (isTooDark) {
+          skippedDarkPixels++;
           isYellow = false;
           isRed = false;
         } else {
@@ -76,6 +80,8 @@ class ColorScanner {
       totalPixels: image.width * image.height,
       yellowPixels: yellowPixels,
       redPixels: redPixels,
+      scannedPixels: scannedPixels,
+      skippedDarkPixels: skippedDarkPixels,
       mask: mask,
       yellowMask: yellowMask,
       redMask: redMask,
