@@ -1297,6 +1297,31 @@ class _CameraScreenState extends State<CameraScreen>
           initialPositionY: _confirmedBallPosition?.dy,
         );
 
+        if ((videoFrameIndex >= 245 && videoFrameIndex <= 255) ||
+            (videoFrameIndex >= 370 && videoFrameIndex <= 380)) {
+          final previousBall = _trackingSession.length > 0
+              ? _trackingSession.balls.last
+              : null;
+          final dx = trackedBall != null && previousBall != null
+              ? trackedBall.centerX - previousBall.centerX
+              : null;
+          final dy = trackedBall != null && previousBall != null
+              ? trackedBall.centerY - previousBall.centerY
+              : null;
+
+          debugPrint(
+            'BALL DIAGNOSTIC '
+            'frame=$videoFrameIndex '
+            'candidates=${ballCandidates.length} '
+            'x=${trackedBall?.centerX.toStringAsFixed(1) ?? "N/A"} '
+            'y=${trackedBall?.centerY.toStringAsFixed(1) ?? "N/A"} '
+            'dx=${dx?.toStringAsFixed(1) ?? "N/A"} '
+            'dy=${dy?.toStringAsFixed(1) ?? "N/A"} '
+            'movementStarted=${_ballTracker.movementStarted} '
+            'missed=${_ballTracker.missedFrameCount}',
+          );
+        }
+
         if (!trackingEndedBeforeTrack && _ballTracker.trackingEnded) {
           debugPrint(
             'BALL TRACKING ENDED '

@@ -35,6 +35,8 @@ class BallTracker {
   int _missedFrameCount = 0;
   bool _movementStarted = false;
   bool _trackingEnded = false;
+  double? _pendingMovementDx;
+  double? _pendingMovementDy;
 
   static const int _requiredInitialStableFrames = 3;
   static const double _maximumInitialStableMovementPixels = 20.0;
@@ -58,8 +60,7 @@ class BallTracker {
       return null;
     }
 
-    final sampleUs =
-        (last.timestamp - previous.timestamp).inMicroseconds;
+    final sampleUs = (last.timestamp - previous.timestamp).inMicroseconds;
     final futureUs = (timestamp - last.timestamp).inMicroseconds;
 
     if (sampleUs <= 0 || futureUs <= 0) {
@@ -69,10 +70,8 @@ class BallTracker {
     final ratio = futureUs / sampleUs;
 
     return (
-      x: last.centerX +
-          (last.centerX - previous.centerX) * ratio,
-      y: last.centerY +
-          (last.centerY - previous.centerY) * ratio,
+      x: last.centerX + (last.centerX - previous.centerX) * ratio,
+      y: last.centerY + (last.centerY - previous.centerY) * ratio,
     );
   }
 
@@ -82,6 +81,8 @@ class BallTracker {
     _missedFrameCount = 0;
     _movementStarted = false;
     _trackingEnded = false;
+    _pendingMovementDx = null;
+    _pendingMovementDy = null;
     _initialCandidateHistory.clear();
   }
 
@@ -122,8 +123,24 @@ class BallTracker {
       final dy = selectedCandidate.centerY - previous.centerY;
       final distance = math.sqrt((dx * dx) + (dy * dy));
 
-      if (distance >= movementStartThresholdPixels) {
-        _movementStarted = true;
+      if (!_movementStarted) {
+        final pendingDx = _pendingMovementDx;
+        final pendingDy = _pendingMovementDy;
+        if (distance >= movementStartThresholdPixels) {
+          if (pendingDx != null &&
+              pendingDy != null &&
+              (dx * pendingDx + dy * pendingDy) > 0) {
+            _movementStarted = true;
+            _pendingMovementDx = null;
+            _pendingMovementDy = null;
+          } else {
+            _pendingMovementDx = dx;
+            _pendingMovementDy = dy;
+          }
+        } else {
+          _pendingMovementDx = null;
+          _pendingMovementDy = null;
+        }
       }
     }
 
@@ -377,7 +394,7 @@ class BallTracker {
       final frameIntervalSeconds = last == null
           ? 0.0
           : (timestamp - last.timestamp).inMicroseconds /
-              Duration.microsecondsPerSecond;
+                Duration.microsecondsPerSecond;
 
       if (candidate.isMotionBlur &&
           _previousTrackedBall != null &&
@@ -419,7 +436,9 @@ class BallTracker {
           predictionScore >= minimumPredictionScoreForExtendedMovement;
 
       final canUseDirectionalMovementLimit =
-          !candidate.isMotionBlur && _movementStarted && sameDirection;
+          !candidate.isMotionBlur &&
+          (_movementStarted || _pendingMovementDx != null) &&
+          sameDirection;
 
       var canUseLaunchMovementLimit = false;
 

@@ -955,17 +955,32 @@ void main() {
         ],
       );
 
+      tracker.track(
+        frameIndex: 3,
+        timestamp: const Duration(milliseconds: 100),
+        candidates: const [
+          BallCandidate(
+            centerX: 160,
+            centerY: 100,
+            radius: 20,
+            confidence: 0.9,
+            isCombinedRedYellow: true,
+          ),
+        ],
+      );
+      expect(tracker.movementStarted, isTrue);
+
       for (var i = 0; i < 4; i++) {
         tracker.track(
-          frameIndex: 3 + i,
-          timestamp: Duration(milliseconds: 100 + (i * 50)),
+          frameIndex: 4 + i,
+          timestamp: Duration(milliseconds: 150 + (i * 50)),
           candidates: const [],
         );
       }
 
       final result = tracker.track(
-        frameIndex: 7,
-        timestamp: const Duration(milliseconds: 300),
+        frameIndex: 8,
+        timestamp: const Duration(milliseconds: 350),
         candidates: const [
           BallCandidate(
             centerX: 140,
@@ -1125,5 +1140,83 @@ void main() {
       expect(jumped, isNull);
     });
 
+    test('does not start movement on a single position jump', () {
+      final tracker = BallTracker();
+
+      const positions = [
+        (508.0, 1352.0),
+        (533.0, 1343.0),
+        (533.0, 1343.0),
+        (532.5, 1343.0),
+      ];
+
+      for (var i = 0; i < positions.length; i++) {
+        final position = positions[i];
+
+        tracker.track(
+          frameIndex: 248 + i,
+          timestamp: Duration(microseconds: i * 8333),
+          candidates: [
+            BallCandidate(
+              centerX: position.$1,
+              centerY: position.$2,
+              radius: 20,
+              confidence: 0.9,
+              isCombinedRedYellow: true,
+            ),
+          ],
+        );
+      }
+
+      expect(tracker.movementStarted, isFalse);
+    });
+
+    test('confirms sustained upward ball launch after temporary misses', () {
+      final tracker = BallTracker();
+
+      const positions = [
+        (370, 529.5, 1342.5),
+        (371, 512.5, 1345.5),
+        (374, 498.0, 1258.5),
+        (375, 498.0, 1214.5),
+        (376, 499.5, 1179.5),
+        (377, 498.5, 1148.0),
+      ];
+
+      for (final position in positions) {
+        final frame = position.$1;
+
+        if (frame == 374) {
+          for (final missedFrame in [372, 373]) {
+            tracker.track(
+              frameIndex: missedFrame,
+              timestamp: Duration(microseconds: missedFrame * 8333),
+              candidates: const [],
+            );
+          }
+          expect(tracker.movementStarted, isFalse);
+        }
+
+        tracker.track(
+          frameIndex: frame,
+          timestamp: Duration(microseconds: frame * 8333),
+          candidates: [
+            BallCandidate(
+              centerX: position.$2,
+              centerY: position.$3,
+              radius: 20,
+              confidence: 0.9,
+              isCombinedRedYellow: true,
+            ),
+          ],
+        );
+
+        if (frame == 374) {
+          expect(tracker.movementStarted, isFalse);
+        }
+      }
+
+      expect(tracker.movementStarted, isTrue);
+    });
   });
 }
