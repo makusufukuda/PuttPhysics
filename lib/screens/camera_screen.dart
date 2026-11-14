@@ -20,6 +20,8 @@ import '../services/ball_tracker.dart';
 import '../services/blue_marker_diagnostic.dart';
 import '../services/green_marker_diagnostic.dart';
 import '../services/pink_marker_diagnostic.dart';
+import '../services/putter_buffer_analyzer.dart';
+import '../services/putter_frame_buffer.dart';
 import '../services/putter_detector.dart';
 import '../services/putter_tracker.dart';
 import '../services/marker_detector.dart';
@@ -970,9 +972,13 @@ class _CameraScreenState extends State<CameraScreen>
       _putterTracker.reset();
       _trackingSession.clear();
       _putterTrackingSession.clear();
+      final putterFrameBuffer = PutterFrameBuffer(capacity: 8);
       _frameAnalysisCount = 0;
       var putterTrackedFrames = 0;
       var putterDetectedFrames = 0;
+      const maxFailureSamples = 100;
+      var putterMissedFrameCount = 0;
+      var putterTrackingFailedCount = 0;
       final putterMissedFrameIndices = <int>[];
       final putterTrackingFailedIndices = <int>[];
       var putterCurrentStreak = 0;
@@ -1150,6 +1156,18 @@ class _CameraScreenState extends State<CameraScreen>
         _frameAnalysisCount++;
 
         if (!_ballTracker.movementStarted) {
+          putterFrameBuffer.add(
+            image: decodedImage,
+            frameIndex: videoFrameIndex,
+            timestamp: frame.position,
+            minX: 0,
+            minY: (ballPosition.dy - 200).floor(),
+            maxX: decodedImage.width,
+            maxY: decodedImage.height,
+          );
+        }
+
+        if (!_ballTracker.movementStarted) {
           // Search the near side of the initial ball position.
           // Keep a safety margin toward the far side for impact detection.
           const putterRoiMargin = 200.0;
@@ -1170,7 +1188,10 @@ class _CameraScreenState extends State<CameraScreen>
           if (putterCandidates.isNotEmpty) {
             putterDetectedFrames++;
           } else {
-            putterMissedFrameIndices.add(_frameAnalysisCount);
+            putterMissedFrameCount++;
+            if (putterMissedFrameIndices.length < maxFailureSamples) {
+              putterMissedFrameIndices.add(_frameAnalysisCount);
+            }
           }
 
           final trackedPutter = _putterTracker.track(
@@ -1180,7 +1201,10 @@ class _CameraScreenState extends State<CameraScreen>
           );
 
           if (trackedPutter == null && putterCandidates.isNotEmpty) {
-            putterTrackingFailedIndices.add(_frameAnalysisCount);
+            putterTrackingFailedCount++;
+            if (putterTrackingFailedIndices.length < maxFailureSamples) {
+              putterTrackingFailedIndices.add(_frameAnalysisCount);
+            }
           }
 
           if (trackedPutter != null) {
@@ -1262,6 +1286,9 @@ class _CameraScreenState extends State<CameraScreen>
               }).toList()
             : imageInfo.ballCandidates;
 
+        final movementStartedBeforeTrack = _ballTracker.movementStarted;
+        final trackingEndedBeforeTrack = _ballTracker.trackingEnded;
+
         final trackedBall = _ballTracker.track(
           frameIndex: videoFrameIndex,
           timestamp: frame.position,
@@ -1269,6 +1296,56 @@ class _CameraScreenState extends State<CameraScreen>
           initialPositionX: _confirmedBallPosition?.dx,
           initialPositionY: _confirmedBallPosition?.dy,
         );
+
+        if (!trackingEndedBeforeTrack && _ballTracker.trackingEnded) {
+          debugPrint(
+            'BALL TRACKING ENDED '
+            'frame=$videoFrameIndex '
+            'ptsUs=${frame.position.inMicroseconds} '
+            'missedFrames=${_ballTracker.missedFrameCount}',
+          );
+          break;
+        }
+
+        if (!movementStartedBeforeTrack && _ballTracker.movementStarted) {
+          final bufferedDetections = PutterBufferAnalyzer.analyze(
+            putterFrameBuffer,
+          );
+
+          final bufferedSession = PutterBufferAnalyzer.trackDetections(
+            bufferedDetections,
+          );
+
+          final preMovementSpeed = PutterBufferAnalyzer.lastPreMovementSpeed(
+            session: bufferedSession,
+            movementStartFrame: videoFrameIndex,
+          );
+
+          debugPrint(
+            'PUTTER BUFFER PRE-MOVEMENT SPEED '
+            'triggerFrame=$videoFrameIndex '
+            'tracked=${bufferedSession.length} '
+            'previousFrame=${preMovementSpeed?.previousFrame ?? "N/A"} '
+            'frame=${preMovementSpeed?.currentFrame ?? "N/A"} '
+            'speed=${preMovementSpeed?.speedPixelsPerSecond.toStringAsFixed(2) ?? "N/A"}px/s',
+          );
+
+          debugPrint(
+            'PUTTER BUFFER FROZEN '
+            'triggerFrame=$videoFrameIndex '
+            'storedFrames=${putterFrameBuffer.length}',
+          );
+
+          for (final bufferedFrame in putterFrameBuffer.frames) {
+            debugPrint(
+              'PUTTER BUFFER FRAME '
+              'frame=${bufferedFrame.frameIndex} '
+              'ptsUs=${bufferedFrame.timestamp.inMicroseconds} '
+              'size=${bufferedFrame.image.width}x${bufferedFrame.image.height} '
+              'origin=${bufferedFrame.originX},${bufferedFrame.originY}',
+            );
+          }
+        }
 
         if (trackedBall == null) {
           final largestBlob = imageInfo.largestBlob;
@@ -1415,13 +1492,13 @@ class _CameraScreenState extends State<CameraScreen>
 
       debugPrint(
         "PUTTER MISSED FRAMES "
-        "count=${putterMissedFrameIndices.length} "
+        "count=$putterMissedFrameCount "
         "indices=$putterMissedFrameIndices",
       );
 
       debugPrint(
         'PUTTER TRACKING FAILED FRAMES '
-        'count=${putterTrackingFailedIndices.length} '
+        'count=$putterTrackingFailedCount '
         'indices=$putterTrackingFailedIndices',
       );
 
@@ -1430,9 +1507,9 @@ class _CameraScreenState extends State<CameraScreen>
           '総フレーム: $_frameAnalysisCount\\n'
           '検出成功: $putterDetectedFrames\\n'
           '追跡成功: $putterTrackedFrames\\n'
-          '検出失敗 (${putterMissedFrameIndices.length}): '
+          '検出失敗 ($putterMissedFrameCount): '
           '$putterMissedFrameIndices\\n'
-          '追跡失敗 (${putterTrackingFailedIndices.length}): '
+          '追跡失敗 ($putterTrackingFailedCount): '
           '$putterTrackingFailedIndices';
 
       final putterMetrics = _putterTrackingSession.latestMetrics();

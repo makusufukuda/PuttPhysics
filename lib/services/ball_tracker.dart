@@ -44,6 +44,7 @@ class BallTracker {
   int get missedFrameCount => _missedFrameCount;
 
   bool get movementStarted => _movementStarted;
+  bool get trackingEnded => _trackingEnded;
 
   TrackedBall? get lastTrackedBall => _lastTrackedBall;
 
