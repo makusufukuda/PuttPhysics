@@ -1180,7 +1180,7 @@ class _CameraScreenState extends State<CameraScreen>
           );
         }
 
-        if (!_ballTracker.movementStarted) {
+        if (const bool.fromEnvironment("ENABLE_LEGACY_PUTTER_TRACKING", defaultValue: false) && !_ballTracker.movementStarted) {
           // Search the near side of the initial ball position.
           // Keep a safety margin toward the far side for impact detection.
           const putterRoiMargin = 200.0;

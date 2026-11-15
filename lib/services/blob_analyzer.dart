@@ -17,8 +17,6 @@ class BlobAnalyzer {
   }) {
     final width = combinedMask.width;
     final height = combinedMask.height;
-    final length = width * height;
-
     if (yellowMask.width != width ||
         yellowMask.height != height ||
         redMask.width != width ||
@@ -27,24 +25,27 @@ class BlobAnalyzer {
     }
 
     final masks = [combinedMask, yellowMask, redMask];
-    final visited = [
-      List<bool>.filled(length, false),
-      List<bool>.filled(length, false),
-      List<bool>.filled(length, false),
-    ];
     final results = [<Blob>[], <Blob>[], <Blob>[]];
 
     final startX = (minX ?? 0).clamp(0, width);
     final startY = (minY ?? 0).clamp(0, height);
     final endX = (maxX ?? width).clamp(0, width);
     final endY = (maxY ?? height).clamp(0, height);
+    final roiWidth = (endX - startX).clamp(0, width);
+    final roiHeight = (endY - startY).clamp(0, height);
+    final visited = [
+      List<bool>.filled(roiWidth * roiHeight, false),
+      List<bool>.filled(roiWidth * roiHeight, false),
+      List<bool>.filled(roiWidth * roiHeight, false),
+    ];
 
     for (var y = startY; y < endY; y++) {
       for (var x = startX; x < endX; x++) {
         final index = y * width + x;
 
         for (var channel = 0; channel < 3; channel++) {
-          if (visited[channel][index] || !masks[channel].pixels[index]) {
+          final visitedIndex = (y - startY) * roiWidth + (x - startX);
+          if (visited[channel][visitedIndex] || !masks[channel].pixels[index]) {
             continue;
           }
 
@@ -53,6 +54,9 @@ class BlobAnalyzer {
             startX: x,
             startY: y,
             visited: visited[channel],
+            visitedOriginX: startX,
+            visitedOriginY: startY,
+            visitedWidth: roiWidth,
             roiMinX: startX,
             roiMinY: startY,
             roiMaxX: endX,
@@ -79,20 +83,22 @@ class BlobAnalyzer {
     int? maxX,
     int? maxY,
   }) {
-    final visited = List<bool>.filled(mask.width * mask.height, false);
-
     final blobs = <Blob>[];
 
     final startX = (minX ?? 0).clamp(0, mask.width);
     final startY = (minY ?? 0).clamp(0, mask.height);
     final endX = (maxX ?? mask.width).clamp(0, mask.width);
     final endY = (maxY ?? mask.height).clamp(0, mask.height);
+    final roiWidth = (endX - startX).clamp(0, mask.width);
+    final roiHeight = (endY - startY).clamp(0, mask.height);
+    final visited = List<bool>.filled(roiWidth * roiHeight, false);
 
     for (var y = startY; y < endY; y++) {
       for (var x = startX; x < endX; x++) {
         final index = y * mask.width + x;
 
-        if (visited[index] || !mask.pixels[index]) {
+        final visitedIndex = (y - startY) * roiWidth + (x - startX);
+        if (visited[visitedIndex] || !mask.pixels[index]) {
           continue;
         }
 
@@ -101,6 +107,9 @@ class BlobAnalyzer {
           startX: x,
           startY: y,
           visited: visited,
+          visitedOriginX: startX,
+          visitedOriginY: startY,
+          visitedWidth: roiWidth,
           roiMinX: startX,
           roiMinY: startY,
           roiMaxX: endX,
@@ -121,6 +130,9 @@ class BlobAnalyzer {
     required int startX,
     required int startY,
     required List<bool> visited,
+    required int visitedOriginX,
+    required int visitedOriginY,
+    required int visitedWidth,
     int roiMinX = 0,
     int roiMinY = 0,
     int? roiMaxX,
@@ -140,7 +152,9 @@ class BlobAnalyzer {
     var maxX = startX;
     var maxY = startY;
 
-    visited[startY * mask.width + startX] = true;
+    visited[(startY - visitedOriginY) * visitedWidth +
+            (startX - visitedOriginX)] =
+        true;
 
     const directions = <(int, int)>[(1, 0), (-1, 0), (0, 1), (0, -1)];
 
@@ -171,11 +185,14 @@ class BlobAnalyzer {
 
         final nextIndex = nextY * mask.width + nextX;
 
-        if (visited[nextIndex] || !mask.pixels[nextIndex]) {
+        final nextVisitedIndex =
+            (nextY - visitedOriginY) * visitedWidth + (nextX - visitedOriginX);
+
+        if (visited[nextVisitedIndex] || !mask.pixels[nextIndex]) {
           continue;
         }
 
-        visited[nextIndex] = true;
+        visited[nextVisitedIndex] = true;
         queueX.add(nextX);
         queueY.add(nextY);
       }
