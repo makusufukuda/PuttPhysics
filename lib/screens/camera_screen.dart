@@ -1,3 +1,4 @@
+import '../services/ball_search_roi.dart';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -461,10 +462,9 @@ class _CameraScreenState extends State<CameraScreen>
       debugPrint('PICKED ORIGINAL ASSET IDENTIFIER: $assetIdentifier');
 
       final original = await _nativeFrameChannel
-          .invokeMapMethod<String, Object?>(
-            'exportOriginalVideoByAssetId',
-            {'assetIdentifier': assetIdentifier},
-          );
+          .invokeMapMethod<String, Object?>('exportOriginalVideoByAssetId', {
+            'assetIdentifier': assetIdentifier,
+          });
 
       if (original == null) {
         throw StateError('元動画を書き出せませんでした');
@@ -477,10 +477,7 @@ class _CameraScreenState extends State<CameraScreen>
         throw StateError('元動画のパスを取得できませんでした');
       }
 
-      final video = XFile(
-        originalPath,
-        name: originalName ?? 'original.mov',
-      );
+      final video = XFile(originalPath, name: originalName ?? 'original.mov');
 
       debugPrint('ORIGINAL VIDEO PATH $originalPath');
       debugPrint('ORIGINAL VIDEO NAME ${video.name}');
@@ -838,10 +835,14 @@ class _CameraScreenState extends State<CameraScreen>
       if (_confirmedBallPosition != null) {
         final image = img.decodeImage(imageBytes);
         if (image != null) {
-          final x = _confirmedBallPosition!.dx.round()
-              .clamp(0, image.width - 1);
-          final y = _confirmedBallPosition!.dy.round()
-              .clamp(0, image.height - 1);
+          final x = _confirmedBallPosition!.dx.round().clamp(
+            0,
+            image.width - 1,
+          );
+          final y = _confirmedBallPosition!.dy.round().clamp(
+            0,
+            image.height - 1,
+          );
           final pixel = image.getPixel(x, y);
           final red = pixel.r.toInt();
           final green = pixel.g.toInt();
@@ -1038,27 +1039,39 @@ class _CameraScreenState extends State<CameraScreen>
         final roiBaseY = lastBall?.centerY ?? ballPosition.dy;
 
         final missedFrames = _ballTracker.missedFrameCount;
-        final roiMargin = 400.0 + (missedFrames * 150.0);
+        final roiMargin = BallSearchRoi.margin(
+          movementStarted: _ballTracker.movementStarted,
+          movementPending: _ballTracker.movementPending,
+          missedFrames: missedFrames,
+        );
 
-        final roiMinX = [
-          roiBaseX,
-          if (predictedBall != null) predictedBall.x,
-        ].reduce((a, b) => a < b ? a : b) - roiMargin;
+        final roiMinX =
+            [
+              roiBaseX,
+              if (predictedBall != null) predictedBall.x,
+            ].reduce((a, b) => a < b ? a : b) -
+            roiMargin;
 
-        final roiMaxX = [
-          roiBaseX,
-          if (predictedBall != null) predictedBall.x,
-        ].reduce((a, b) => a > b ? a : b) + roiMargin;
+        final roiMaxX =
+            [
+              roiBaseX,
+              if (predictedBall != null) predictedBall.x,
+            ].reduce((a, b) => a > b ? a : b) +
+            roiMargin;
 
-        final roiMinY = [
-          roiBaseY,
-          if (predictedBall != null) predictedBall.y,
-        ].reduce((a, b) => a < b ? a : b) - roiMargin;
+        final roiMinY =
+            [
+              roiBaseY,
+              if (predictedBall != null) predictedBall.y,
+            ].reduce((a, b) => a < b ? a : b) -
+            roiMargin;
 
-        final roiMaxY = [
-          roiBaseY,
-          if (predictedBall != null) predictedBall.y,
-        ].reduce((a, b) => a > b ? a : b) + roiMargin;
+        final roiMaxY =
+            [
+              roiBaseY,
+              if (predictedBall != null) predictedBall.y,
+            ].reduce((a, b) => a > b ? a : b) +
+            roiMargin;
 
         final imageInspectStopwatch = Stopwatch()..start();
         final imageInfo = ImageInspector.inspectDecoded(
@@ -1171,10 +1184,9 @@ class _CameraScreenState extends State<CameraScreen>
           // Search the near side of the initial ball position.
           // Keep a safety margin toward the far side for impact detection.
           const putterRoiMargin = 200.0;
-          final putterRoiMinY =
-              (ballPosition.dy - putterRoiMargin)
-                  .floor()
-                  .clamp(0, decodedImage.height);
+          final putterRoiMinY = (ballPosition.dy - putterRoiMargin)
+              .floor()
+              .clamp(0, decodedImage.height);
 
           final putterDetectStopwatch = Stopwatch()..start();
           final putterCandidates = PutterDetector.detectDecoded(
@@ -1238,7 +1250,6 @@ class _CameraScreenState extends State<CameraScreen>
             'count=${putterCandidates.length} '
             'best=${putterCandidates.isEmpty ? null : putterCandidates.first}',
           );
-
         }
 
         if (_frameAnalysisCount >= 370 && _frameAnalysisCount <= 395) {
