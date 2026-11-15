@@ -1,5 +1,6 @@
 import '../models/blob.dart';
 import 'color_mask.dart';
+import 'roi_color_mask.dart';
 
 class BlobAnalyzer {
   /// Extracts combined, yellow, and red blobs in one image traversal.
@@ -65,6 +66,117 @@ class BlobAnalyzer {
 
           if (blob.pixelCount >= minimumPixelCount) {
             results[channel].add(blob);
+          }
+        }
+      }
+    }
+
+    return (results[0], results[1], results[2]);
+  }
+
+  /// Extracts three ROI masks using original-image coordinates.
+  static (List<Blob> combined, List<Blob> yellow, List<Blob> red)
+  extractThreeRoiMasks({
+    required RoiColorMask combinedMask,
+    required RoiColorMask yellowMask,
+    required RoiColorMask redMask,
+    int minimumPixelCount = 1,
+  }) {
+    final masks = [combinedMask, yellowMask, redMask];
+    final originX = combinedMask.originX;
+    final originY = combinedMask.originY;
+    final width = combinedMask.width;
+    final height = combinedMask.height;
+
+    for (final mask in masks) {
+      if (mask.originX != originX ||
+          mask.originY != originY ||
+          mask.width != width ||
+          mask.height != height) {
+        throw ArgumentError('ROI mask bounds must match');
+      }
+    }
+
+    final results = [<Blob>[], <Blob>[], <Blob>[]];
+    final visited = List.generate(
+      3,
+      (_) => List<bool>.filled(width * height, false),
+    );
+
+    const directions = <(int, int)>[(1, 0), (-1, 0), (0, 1), (0, -1)];
+
+    for (var y = 0; y < height; y++) {
+      for (var x = 0; x < width; x++) {
+        final startIndex = y * width + x;
+
+        for (var channel = 0; channel < 3; channel++) {
+          final pixels = masks[channel].pixels;
+          final seen = visited[channel];
+
+          if (seen[startIndex] || !pixels[startIndex]) {
+            continue;
+          }
+
+          final queue = <int>[startIndex];
+          seen[startIndex] = true;
+          var queueIndex = 0;
+
+          var pixelCount = 0;
+          var sumX = 0;
+          var sumY = 0;
+
+          var minX = originX + x;
+          var maxX = minX;
+          var minY = originY + y;
+          var maxY = minY;
+
+          while (queueIndex < queue.length) {
+            final index = queue[queueIndex++];
+            final localX = index % width;
+            final localY = index ~/ width;
+            final imageX = originX + localX;
+            final imageY = originY + localY;
+
+            pixelCount++;
+            sumX += imageX;
+            sumY += imageY;
+
+            if (imageX < minX) minX = imageX;
+            if (imageX > maxX) maxX = imageX;
+            if (imageY < minY) minY = imageY;
+            if (imageY > maxY) maxY = imageY;
+
+            for (final direction in directions) {
+              final nextX = localX + direction.$1;
+              final nextY = localY + direction.$2;
+
+              if (nextX < 0 || nextX >= width || nextY < 0 || nextY >= height) {
+                continue;
+              }
+
+              final nextIndex = nextY * width + nextX;
+
+              if (seen[nextIndex] || !pixels[nextIndex]) {
+                continue;
+              }
+
+              seen[nextIndex] = true;
+              queue.add(nextIndex);
+            }
+          }
+
+          if (pixelCount >= minimumPixelCount) {
+            results[channel].add(
+              Blob(
+                pixelCount: pixelCount,
+                minX: minX,
+                minY: minY,
+                maxX: maxX,
+                maxY: maxY,
+                centroidX: sumX / pixelCount,
+                centroidY: sumY / pixelCount,
+              ),
+            );
           }
         }
       }

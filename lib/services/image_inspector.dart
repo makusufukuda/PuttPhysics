@@ -116,35 +116,63 @@ class ImageInspector {
     );
 
     final colorWatch = Stopwatch()..start();
-    final scanResult = ColorScanner.scan(
-      image,
-      minX: minX,
-      minY: minY,
-      maxX: maxX,
-      maxY: maxY,
-    );
+    final useRoi = minX != null && minY != null && maxX != null && maxY != null;
+
+    final roiScanResult = useRoi
+        ? ColorScanner.scanRoi(
+            image,
+            minX: minX,
+            minY: minY,
+            maxX: maxX,
+            maxY: maxY,
+          )
+        : null;
+
+    final scanResult = useRoi
+        ? null
+        : ColorScanner.scan(
+            image,
+            minX: minX,
+            minY: minY,
+            maxX: maxX,
+            maxY: maxY,
+          );
+
+    final scannedPixels =
+        roiScanResult?.scannedPixels ?? scanResult!.scannedPixels;
+    final skippedDarkPixels =
+        roiScanResult?.skippedDarkPixels ?? scanResult!.skippedDarkPixels;
+    final skippedDarkRatio =
+        roiScanResult?.skippedDarkRatio ?? scanResult!.skippedDarkRatio;
     colorWatch.stop();
     if (debugFrameIndex != null && debugFrameIndex <= 20) {
       debugPrint(
         "COLOR SCAN TIMING frame=$debugFrameIndex "
         "ms=${(colorWatch.elapsedMicroseconds / 1000).toStringAsFixed(2)} "
-        "scanned=${scanResult.scannedPixels} "
-        "skippedDark=${scanResult.skippedDarkPixels} "
-        "skippedPercent=${(scanResult.skippedDarkRatio * 100).toStringAsFixed(1)}%",
+        "scanned=$scannedPixels "
+        "skippedDark=$skippedDarkPixels "
+        "skippedPercent=${(skippedDarkRatio * 100).toStringAsFixed(1)}%",
       );
     }
 
     final blobWatch = Stopwatch()..start();
-    final (blobs, yellowBlobs, redBlobs) = BlobAnalyzer.extractThreeMasks(
-      combinedMask: scanResult.mask,
-      yellowMask: scanResult.yellowMask,
-      redMask: scanResult.redMask,
-      minimumPixelCount: _minimumBlobPixelCount,
-      minX: minX,
-      minY: minY,
-      maxX: maxX,
-      maxY: maxY,
-    );
+    final (blobs, yellowBlobs, redBlobs) = roiScanResult != null
+        ? BlobAnalyzer.extractThreeRoiMasks(
+            combinedMask: roiScanResult.mask,
+            yellowMask: roiScanResult.yellowMask,
+            redMask: roiScanResult.redMask,
+            minimumPixelCount: _minimumBlobPixelCount,
+          )
+        : BlobAnalyzer.extractThreeMasks(
+            combinedMask: scanResult!.mask,
+            yellowMask: scanResult.yellowMask,
+            redMask: scanResult.redMask,
+            minimumPixelCount: _minimumBlobPixelCount,
+            minX: minX,
+            minY: minY,
+            maxX: maxX,
+            maxY: maxY,
+          );
 
     blobWatch.stop();
     if (debugFrameIndex != null && debugFrameIndex <= 20) {
@@ -339,12 +367,13 @@ class ImageInspector {
       centerValue: centerHsv.value,
       centerIsYellow: ColorDetector.isYellow(centerHsv),
       centerIsRed: ColorDetector.isRed(centerHsv),
-      totalPixels: scanResult.totalPixels,
-      yellowPixels: scanResult.yellowPixels,
-      redPixels: scanResult.redPixels,
-      targetColorPixels: scanResult.targetColorPixels,
-      yellowRatio: scanResult.yellowRatio,
-      redRatio: scanResult.redRatio,
+      totalPixels: roiScanResult?.totalPixels ?? scanResult!.totalPixels,
+      yellowPixels: roiScanResult?.yellowPixels ?? scanResult!.yellowPixels,
+      redPixels: roiScanResult?.redPixels ?? scanResult!.redPixels,
+      targetColorPixels:
+          roiScanResult?.targetColorPixels ?? scanResult!.targetColorPixels,
+      yellowRatio: roiScanResult?.yellowRatio ?? scanResult!.yellowRatio,
+      redRatio: roiScanResult?.redRatio ?? scanResult!.redRatio,
       blobCount: blobs.length,
       largestBlob: largestBlob,
       ballCandidateCount: ballCandidates.length,
