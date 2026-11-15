@@ -57,6 +57,72 @@ class FrameExtractor {
     throw StateError('Unsupported pixel format: ${frame.pixelFormat}');
   }
 
+
+  /// Decode only the requested rectangle from a BGRA8888 frame.
+  /// The returned image uses local ROI coordinates.
+  static img.Image? decodeFrameRoi(
+    ExtractedVideoFrame frame, {
+    required int minX,
+    required int minY,
+    required int maxX,
+    required int maxY,
+  }) {
+    if (frame.pixelFormat != 'BGRA8888') {
+      throw StateError('ROI decoding requires BGRA8888.');
+    }
+
+    final width = frame.width;
+    final height = frame.height;
+    final bytesPerRow = frame.bytesPerRow;
+
+    if (width == null ||
+        height == null ||
+        bytesPerRow == null ||
+        width <= 0 ||
+        height <= 0 ||
+        bytesPerRow < width * 4 ||
+        frame.imageBytes.lengthInBytes != bytesPerRow * height) {
+      throw StateError('Invalid BGRA frame data.');
+    }
+
+    final x1 = minX.clamp(0, width);
+    final y1 = minY.clamp(0, height);
+    final x2 = maxX.clamp(0, width);
+    final y2 = maxY.clamp(0, height);
+
+    if (x2 <= x1 || y2 <= y1) {
+      return null;
+    }
+
+    final roiWidth = x2 - x1;
+    final roiHeight = y2 - y1;
+    final rgba = Uint8List(roiWidth * roiHeight * 4);
+    final source = frame.imageBytes;
+
+    for (var y = 0; y < roiHeight; y++) {
+      var src = (y1 + y) * bytesPerRow + x1 * 4;
+      var dst = y * roiWidth * 4;
+
+      for (var x = 0; x < roiWidth; x++) {
+        rgba[dst] = source[src + 2];
+        rgba[dst + 1] = source[src + 1];
+        rgba[dst + 2] = source[src];
+        rgba[dst + 3] = source[src + 3];
+
+        src += 4;
+        dst += 4;
+      }
+    }
+
+    return img.Image.fromBytes(
+      width: roiWidth,
+      height: roiHeight,
+      bytes: rgba.buffer,
+      numChannels: 4,
+      order: img.ChannelOrder.rgba,
+    );
+  }
+
   static const MethodChannel _nativeFrameChannel = MethodChannel(
     'com.chainaflower.puttphysics/frame_extractor',
   );

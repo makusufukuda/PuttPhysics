@@ -15,6 +15,7 @@ class ColorScanner {
     required int minY,
     required int maxX,
     required int maxY,
+    int? originalTotalPixels,
   }) {
     final startX = minX.clamp(0, image.width);
     final startY = minY.clamp(0, image.height);
@@ -87,7 +88,7 @@ class ColorScanner {
     }
 
     return RoiColorScanResult(
-      totalPixels: image.width * image.height,
+      totalPixels: originalTotalPixels ?? image.width * image.height,
       yellowPixels: yellowPixels,
       redPixels: redPixels,
       scannedPixels: scannedPixels,

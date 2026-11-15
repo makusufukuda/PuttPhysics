@@ -69,6 +69,35 @@ class PutterFrameBuffer {
     }
   }
 
+
+  /// Store an already-cropped image without cropping it again.
+  /// originX and originY are coordinates in the original full frame.
+  void addCropped({
+    required img.Image image,
+    required int frameIndex,
+    required Duration timestamp,
+    required int originX,
+    required int originY,
+  }) {
+    if (image.width <= 0 || image.height <= 0) {
+      return;
+    }
+
+    _frames.add(
+      PutterBufferedFrame(
+        frameIndex: frameIndex,
+        timestamp: timestamp,
+        image: image,
+        originX: originX,
+        originY: originY,
+      ),
+    );
+
+    if (_frames.length > capacity) {
+      _frames.removeAt(0);
+    }
+  }
+
   void clear() {
     _frames.clear();
   }

@@ -1,8 +1,11 @@
+import 'dart:typed_data';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:putt_physics_v1/models/putter_candidate.dart';
 import 'package:putt_physics_v1/services/putter_buffer_analyzer.dart';
 import 'package:putt_physics_v1/services/putter_frame_buffer.dart';
+import 'package:putt_physics_v1/services/frame_extractor.dart';
 
 import 'package:putt_physics_v1/models/tracked_ball.dart';
 import 'package:putt_physics_v1/models/tracked_putter.dart';
@@ -237,4 +240,221 @@ void main() {
     expect(results.single.frameIndex, 371);
     expect(results.single.candidates, isEmpty);
   });
+
+  test('BGRA direct ROI preserves putter detection', () {
+    const width = 300;
+    const height = 300;
+    final bytes = Uint8List(width * height * 4);
+
+    // Two pink markers, matching the existing detector test.
+    for (final startX in [100, 160]) {
+      for (var y = 150; y < 170; y++) {
+        for (var x = startX; x < startX + 20; x++) {
+          final offset = (y * width + x) * 4;
+          bytes[offset] = 150;     // B
+          bytes[offset + 1] = 0;   // G
+          bytes[offset + 2] = 255; // R
+          bytes[offset + 3] = 255; // A
+        }
+      }
+    }
+
+    final frame = ExtractedVideoFrame(
+      position: const Duration(microseconds: 3083333),
+      frameIndex: 370,
+      imageBytes: bytes,
+      pixelFormat: 'BGRA8888',
+      width: width,
+      height: height,
+      bytesPerRow: width * 4,
+    );
+
+    final original = PutterFrameBuffer();
+    final direct = PutterFrameBuffer();
+
+    final full = FrameExtractor.decodeFrame(frame)!;
+
+    original.add(
+      image: full,
+      frameIndex: 370,
+      timestamp: frame.position,
+      minX: 80,
+      minY: 120,
+      maxX: 220,
+      maxY: 220,
+    );
+
+    final roi = FrameExtractor.decodeFrameRoi(
+      frame,
+      minX: 80,
+      minY: 120,
+      maxX: 220,
+      maxY: 220,
+    )!;
+
+    direct.addCropped(
+      image: roi,
+      frameIndex: 370,
+      timestamp: frame.position,
+      originX: 80,
+      originY: 120,
+    );
+
+    final expected = PutterBufferAnalyzer.analyze(original).single;
+    final actual = PutterBufferAnalyzer.analyze(direct).single;
+
+    expect(actual.frameIndex, expected.frameIndex);
+    expect(actual.timestamp, expected.timestamp);
+    expect(expected.candidates, isNotEmpty);
+    expect(actual.candidates.length, expected.candidates.length);
+
+    for (var i = 0; i < expected.candidates.length; i++) {
+      final a = actual.candidates[i];
+      final e = expected.candidates[i];
+
+      expect(a.centerX, closeTo(e.centerX, 0.001));
+      expect(a.centerY, closeTo(e.centerY, 0.001));
+      expect(a.width, e.width);
+      expect(a.height, e.height);
+      expect(a.blobCount, e.blobCount);
+      expect(a.confidence, closeTo(e.confidence, 0.000001));
+    }
+  });
+
+
+  test('BGRA ROI preserves 120fps putter tracking and speed', () {
+    const width = 300;
+    const height = 300;
+
+    final original = PutterFrameBuffer();
+    final direct = PutterFrameBuffer();
+
+    for (var i = 0; i < 4; i++) {
+      final bytes = Uint8List(width * height * 4);
+      final shiftX = i * 5;
+
+      for (final startX in [100 + shiftX, 160 + shiftX]) {
+        for (var y = 150; y < 170; y++) {
+          for (var x = startX; x < startX + 20; x++) {
+            final offset = (y * width + x) * 4;
+            bytes[offset] = 150;
+            bytes[offset + 1] = 0;
+            bytes[offset + 2] = 255;
+            bytes[offset + 3] = 255;
+          }
+        }
+      }
+
+      final frame = ExtractedVideoFrame(
+        position: Duration(microseconds: i * 8333),
+        frameIndex: 370 + i,
+        imageBytes: bytes,
+        pixelFormat: 'BGRA8888',
+        width: width,
+        height: height,
+        bytesPerRow: width * 4,
+      );
+
+      original.add(
+        image: FrameExtractor.decodeFrame(frame)!,
+        frameIndex: frame.frameIndex!,
+        timestamp: frame.position,
+        minX: 80,
+        minY: 120,
+        maxX: 240,
+        maxY: 220,
+      );
+
+      direct.addCropped(
+        image: FrameExtractor.decodeFrameRoi(
+          frame,
+          minX: 80,
+          minY: 120,
+          maxX: 240,
+          maxY: 220,
+        )!,
+        frameIndex: frame.frameIndex!,
+        timestamp: frame.position,
+        originX: 80,
+        originY: 120,
+      );
+    }
+
+    final oldDetections = PutterBufferAnalyzer.analyze(original);
+    final newDetections = PutterBufferAnalyzer.analyze(direct);
+
+    expect(oldDetections.length, 4);
+    expect(newDetections.length, 4);
+
+    for (var i = 0; i < 4; i++) {
+      final oldFrame = oldDetections[i];
+      final newFrame = newDetections[i];
+
+      expect(newFrame.frameIndex, oldFrame.frameIndex);
+      expect(newFrame.timestamp, oldFrame.timestamp);
+      expect(oldFrame.candidates, isNotEmpty);
+      expect(newFrame.candidates.length, oldFrame.candidates.length);
+
+      for (var j = 0; j < oldFrame.candidates.length; j++) {
+        final a = newFrame.candidates[j];
+        final e = oldFrame.candidates[j];
+
+        expect(a.centerX, closeTo(e.centerX, 0.001));
+        expect(a.centerY, closeTo(e.centerY, 0.001));
+        expect(a.confidence, closeTo(e.confidence, 0.000001));
+      }
+    }
+
+    final oldSession =
+        PutterBufferAnalyzer.trackDetections(oldDetections);
+    final newSession =
+        PutterBufferAnalyzer.trackDetections(newDetections);
+
+    expect(oldSession.length, 4);
+    expect(newSession.length, oldSession.length);
+
+    for (var i = 0; i < oldSession.length; i++) {
+      final a = newSession.putters[i];
+      final e = oldSession.putters[i];
+
+      expect(a.frameIndex, e.frameIndex);
+      expect(a.timestamp, e.timestamp);
+      expect(a.centerX, closeTo(e.centerX, 0.001));
+      expect(a.centerY, closeTo(e.centerY, 0.001));
+    }
+
+    final oldSpeeds = oldSession.allFrameSpeeds();
+    final newSpeeds = newSession.allFrameSpeeds();
+
+    expect(oldSpeeds.length, 3);
+    expect(newSpeeds.length, oldSpeeds.length);
+
+    for (var i = 0; i < oldSpeeds.length; i++) {
+      expect(newSpeeds[i].previousFrame, oldSpeeds[i].previousFrame);
+      expect(newSpeeds[i].currentFrame, oldSpeeds[i].currentFrame);
+      expect(
+        newSpeeds[i].speedPixelsPerSecond,
+        closeTo(oldSpeeds[i].speedPixelsPerSecond, 0.001),
+      );
+    }
+
+    final oldPre = PutterBufferAnalyzer.lastPreMovementSpeed(
+      session: oldSession,
+      movementStartFrame: 374,
+    );
+    final newPre = PutterBufferAnalyzer.lastPreMovementSpeed(
+      session: newSession,
+      movementStartFrame: 374,
+    );
+
+    expect(oldPre, isNotNull);
+    expect(newPre, isNotNull);
+    expect(newPre!.previousFrame, oldPre!.previousFrame);
+    expect(newPre.currentFrame, oldPre.currentFrame);
+    expect(
+      newPre.speedPixelsPerSecond,
+      closeTo(oldPre.speedPixelsPerSecond, 0.001),
+    );
+  });
+
 }

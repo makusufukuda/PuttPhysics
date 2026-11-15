@@ -73,6 +73,46 @@ class ImageInspector {
 
   static const int _minimumBlobPixelCount = 10;
 
+  static (int, int, int) _readBgraCenterRgb({
+    required Uint8List bytes,
+    required int width,
+    required int height,
+    required int bytesPerRow,
+  }) {
+    if (width <= 0 ||
+        height <= 0 ||
+        bytesPerRow < width * 4 ||
+        bytes.lengthInBytes != bytesPerRow * height) {
+      throw StateError('Invalid BGRA frame data.');
+    }
+
+    final centerX = width ~/ 2;
+    final centerY = height ~/ 2;
+    final offset = centerY * bytesPerRow + centerX * 4;
+
+    final blue = bytes[offset];
+    final green = bytes[offset + 1];
+    final red = bytes[offset + 2];
+
+    return (red, green, blue);
+  }
+
+  static Blob _translateBlobToGlobal(
+    Blob blob, {
+    required int offsetX,
+    required int offsetY,
+  }) {
+    return Blob(
+      pixelCount: blob.pixelCount,
+      minX: blob.minX + offsetX,
+      minY: blob.minY + offsetY,
+      maxX: blob.maxX + offsetX,
+      maxY: blob.maxY + offsetY,
+      centroidX: blob.centroidX + offsetX,
+      centroidY: blob.centroidY + offsetY,
+    );
+  }
+
   static ImageInfoResult? inspect(
     Uint8List imageBytes, {
     int? debugFrameIndex,
