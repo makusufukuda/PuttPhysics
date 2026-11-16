@@ -7,6 +7,7 @@ import 'blob_analyzer.dart';
 import 'blob_filter.dart';
 import 'color_detector.dart';
 import 'color_scanner.dart';
+import 'frame_extractor.dart';
 
 class ImageInfoResult {
   const ImageInfoResult({
@@ -110,6 +111,132 @@ class ImageInspector {
       maxY: blob.maxY + offsetY,
       centroidX: blob.centroidX + offsetX,
       centroidY: blob.centroidY + offsetY,
+    );
+  }
+
+  static ImageInfoResult? inspectFrameRoi(
+    ExtractedVideoFrame frame, {
+    required int minX,
+    required int minY,
+    required int maxX,
+    required int maxY,
+    int? debugFrameIndex,
+  }) {
+    final width = frame.width;
+    final height = frame.height;
+    final bytesPerRow = frame.bytesPerRow;
+
+    if (frame.pixelFormat != 'BGRA8888' ||
+        width == null ||
+        height == null ||
+        bytesPerRow == null) {
+      throw StateError('ROI inspection requires BGRA8888 frame metadata.');
+    }
+
+    final x1 = minX.clamp(0, width);
+    final y1 = minY.clamp(0, height);
+    final x2 = maxX.clamp(0, width);
+    final y2 = maxY.clamp(0, height);
+
+    if (x2 <= x1 || y2 <= y1) {
+      return null;
+    }
+
+    final roiImage = FrameExtractor.decodeFrameRoi(
+      frame,
+      minX: x1,
+      minY: y1,
+      maxX: x2,
+      maxY: y2,
+    );
+
+    if (roiImage == null) {
+      return null;
+    }
+
+    final (centerRed, centerGreen, centerBlue) = _readBgraCenterRgb(
+      bytes: frame.imageBytes,
+      width: width,
+      height: height,
+      bytesPerRow: bytesPerRow,
+    );
+
+    final centerHsv = ColorDetector.rgbToHsv(
+      red: centerRed,
+      green: centerGreen,
+      blue: centerBlue,
+    );
+
+    final roiScanResult = ColorScanner.scanRoi(
+      roiImage,
+      minX: 0,
+      minY: 0,
+      maxX: roiImage.width,
+      maxY: roiImage.height,
+      originalTotalPixels: width * height,
+    );
+
+    final (
+      localBlobs,
+      localYellowBlobs,
+      localRedBlobs,
+    ) = BlobAnalyzer.extractThreeRoiMasks(
+      combinedMask: roiScanResult.mask,
+      yellowMask: roiScanResult.yellowMask,
+      redMask: roiScanResult.redMask,
+      minimumPixelCount: _minimumBlobPixelCount,
+    );
+
+    final blobs = [
+      for (final blob in localBlobs)
+        _translateBlobToGlobal(blob, offsetX: x1, offsetY: y1),
+    ];
+
+    final yellowBlobs = [
+      for (final blob in localYellowBlobs)
+        _translateBlobToGlobal(blob, offsetX: x1, offsetY: y1),
+    ];
+
+    final redBlobs = [
+      for (final blob in localRedBlobs)
+        _translateBlobToGlobal(blob, offsetX: x1, offsetY: y1),
+    ];
+
+    final (
+      largestBlob,
+      ballCandidates,
+      bestBallCandidate,
+    ) = _analyzeBallCandidates(
+      blobs: blobs,
+      yellowBlobs: yellowBlobs,
+      redBlobs: redBlobs,
+      debugFrameIndex: debugFrameIndex,
+    );
+
+    return ImageInfoResult(
+      width: width,
+      height: height,
+      centerX: width ~/ 2,
+      centerY: height ~/ 2,
+      centerRed: centerRed,
+      centerGreen: centerGreen,
+      centerBlue: centerBlue,
+      centerHue: centerHsv.hue,
+      centerSaturation: centerHsv.saturation,
+      centerValue: centerHsv.value,
+      centerIsYellow: ColorDetector.isYellow(centerHsv),
+      centerIsRed: ColorDetector.isRed(centerHsv),
+      totalPixels: roiScanResult.totalPixels,
+      yellowPixels: roiScanResult.yellowPixels,
+      redPixels: roiScanResult.redPixels,
+      targetColorPixels: roiScanResult.targetColorPixels,
+      yellowRatio: roiScanResult.yellowRatio,
+      redRatio: roiScanResult.redRatio,
+      blobCount: blobs.length,
+      largestBlob: largestBlob,
+      ballCandidateCount: ballCandidates.length,
+      ballCandidates: ballCandidates,
+      bestBallCandidate: bestBallCandidate,
     );
   }
 
@@ -263,6 +390,51 @@ class ImageInspector {
       }
     }
 
+    final (
+      largestBlob,
+      ballCandidates,
+      bestBallCandidate,
+    ) = _analyzeBallCandidates(
+      blobs: blobs,
+      yellowBlobs: yellowBlobs,
+      redBlobs: redBlobs,
+      debugFrameIndex: debugFrameIndex,
+    );
+
+    return ImageInfoResult(
+      width: image.width,
+      height: image.height,
+      centerX: centerX,
+      centerY: centerY,
+      centerRed: centerRed,
+      centerGreen: centerGreen,
+      centerBlue: centerBlue,
+      centerHue: centerHsv.hue,
+      centerSaturation: centerHsv.saturation,
+      centerValue: centerHsv.value,
+      centerIsYellow: ColorDetector.isYellow(centerHsv),
+      centerIsRed: ColorDetector.isRed(centerHsv),
+      totalPixels: roiScanResult?.totalPixels ?? scanResult!.totalPixels,
+      yellowPixels: roiScanResult?.yellowPixels ?? scanResult!.yellowPixels,
+      redPixels: roiScanResult?.redPixels ?? scanResult!.redPixels,
+      targetColorPixels:
+          roiScanResult?.targetColorPixels ?? scanResult!.targetColorPixels,
+      yellowRatio: roiScanResult?.yellowRatio ?? scanResult!.yellowRatio,
+      redRatio: roiScanResult?.redRatio ?? scanResult!.redRatio,
+      blobCount: blobs.length,
+      largestBlob: largestBlob,
+      ballCandidateCount: ballCandidates.length,
+      ballCandidates: ballCandidates,
+      bestBallCandidate: bestBallCandidate,
+    );
+  }
+
+  static (Blob?, List<BallCandidate>, BallCandidate?) _analyzeBallCandidates({
+    required List<Blob> blobs,
+    required List<Blob> yellowBlobs,
+    required List<Blob> redBlobs,
+    int? debugFrameIndex,
+  }) {
     Blob? largestBlob;
 
     for (final blob in blobs) {
@@ -394,32 +566,7 @@ class ImageInspector {
         ? null
         : ballCandidates.first;
 
-    return ImageInfoResult(
-      width: image.width,
-      height: image.height,
-      centerX: centerX,
-      centerY: centerY,
-      centerRed: centerRed,
-      centerGreen: centerGreen,
-      centerBlue: centerBlue,
-      centerHue: centerHsv.hue,
-      centerSaturation: centerHsv.saturation,
-      centerValue: centerHsv.value,
-      centerIsYellow: ColorDetector.isYellow(centerHsv),
-      centerIsRed: ColorDetector.isRed(centerHsv),
-      totalPixels: roiScanResult?.totalPixels ?? scanResult!.totalPixels,
-      yellowPixels: roiScanResult?.yellowPixels ?? scanResult!.yellowPixels,
-      redPixels: roiScanResult?.redPixels ?? scanResult!.redPixels,
-      targetColorPixels:
-          roiScanResult?.targetColorPixels ?? scanResult!.targetColorPixels,
-      yellowRatio: roiScanResult?.yellowRatio ?? scanResult!.yellowRatio,
-      redRatio: roiScanResult?.redRatio ?? scanResult!.redRatio,
-      blobCount: blobs.length,
-      largestBlob: largestBlob,
-      ballCandidateCount: ballCandidates.length,
-      ballCandidates: ballCandidates,
-      bestBallCandidate: bestBallCandidate,
-    );
+    return (largestBlob, ballCandidates, bestBallCandidate);
   }
 
   static BallCandidate? _createCombinedRedYellowCandidate({
