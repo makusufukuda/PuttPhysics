@@ -37,6 +37,8 @@ class BallTracker {
   bool _trackingEnded = false;
   double? _pendingMovementDx;
   double? _pendingMovementDy;
+  int? _pendingMovementStartFrame;
+  int? _movementStartFrame;
 
   static const int _requiredInitialStableFrames = 3;
   static const double _maximumInitialStableMovementPixels = 20.0;
@@ -48,6 +50,8 @@ class BallTracker {
   bool get movementStarted => _movementStarted;
 
   bool get movementPending => !_movementStarted && _pendingMovementDx != null;
+  int? get pendingMovementStartFrame => _pendingMovementStartFrame;
+  int? get movementStartFrame => _movementStartFrame;
   bool get trackingEnded => _trackingEnded;
 
   TrackedBall? get lastTrackedBall => _lastTrackedBall;
@@ -85,6 +89,8 @@ class BallTracker {
     _trackingEnded = false;
     _pendingMovementDx = null;
     _pendingMovementDy = null;
+    _pendingMovementStartFrame = null;
+    _movementStartFrame = null;
     _initialCandidateHistory.clear();
   }
 
@@ -133,15 +139,19 @@ class BallTracker {
               pendingDy != null &&
               (dx * pendingDx + dy * pendingDy) > 0) {
             _movementStarted = true;
+            _movementStartFrame = _pendingMovementStartFrame;
             _pendingMovementDx = null;
             _pendingMovementDy = null;
+            _pendingMovementStartFrame = null;
           } else {
             _pendingMovementDx = dx;
             _pendingMovementDy = dy;
+            _pendingMovementStartFrame = frameIndex;
           }
         } else {
           _pendingMovementDx = null;
           _pendingMovementDy = null;
+          _pendingMovementStartFrame = null;
         }
       }
     }

@@ -1352,14 +1352,29 @@ class _CameraScreenState extends State<CameraScreen>
             bufferedDetections,
           );
 
+          for (final putter in bufferedSession.putters) {
+            debugPrint(
+              'PUTTER BUFFER TRACK '
+              'frame=${putter.frameIndex} '
+              'ptsUs=${putter.timestamp.inMicroseconds} '
+              'x=${putter.centerX.toStringAsFixed(2)} '
+              'y=${putter.centerY.toStringAsFixed(2)} '
+              'confidence=${putter.confidence.toStringAsFixed(3)}',
+            );
+          }
+
+          final movementStartFrame =
+              _ballTracker.movementStartFrame ?? videoFrameIndex;
+
           final preMovementSpeed = PutterBufferAnalyzer.lastPreMovementSpeed(
             session: bufferedSession,
-            movementStartFrame: videoFrameIndex,
+            movementStartFrame: movementStartFrame,
           );
 
           debugPrint(
             'PUTTER BUFFER PRE-MOVEMENT SPEED '
             'triggerFrame=$videoFrameIndex '
+            'movementStartFrame=$movementStartFrame '
             'tracked=${bufferedSession.length} '
             'previousFrame=${preMovementSpeed?.previousFrame ?? "N/A"} '
             'frame=${preMovementSpeed?.currentFrame ?? "N/A"} '
