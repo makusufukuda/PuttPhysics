@@ -15,7 +15,6 @@ import '../services/debug_log.dart';
 import '../services/image_inspector.dart';
 import '../services/initial_ball_search_region.dart';
 import '../models/tracking_session.dart';
-import '../models/putter_tracking_session.dart';
 import '../models/marker_calibration_result.dart';
 import '../models/marker_candidate.dart';
 import '../services/ball_tracker.dart';
@@ -25,7 +24,6 @@ import '../services/pink_marker_diagnostic.dart';
 import '../services/putter_buffer_analyzer.dart';
 import '../services/putter_frame_buffer.dart';
 import '../services/putter_detector.dart';
-import '../services/putter_tracker.dart';
 import '../services/marker_detector.dart';
 import '../services/marker_calibration.dart';
 import '../services/perspective_calibration.dart';
@@ -99,9 +97,7 @@ class _CameraScreenState extends State<CameraScreen>
   Offset? _confirmedBallPosition;
 
   final BallTracker _ballTracker = BallTracker();
-  final PutterTracker _putterTracker = PutterTracker();
   final TrackingSession _trackingSession = TrackingSession();
-  final PutterTrackingSession _putterTrackingSession = PutterTrackingSession();
 
   int _frameAnalysisCount = 0;
 
@@ -972,31 +968,15 @@ class _CameraScreenState extends State<CameraScreen>
 
     try {
       _ballTracker.reset();
-      _putterTracker.reset();
       _trackingSession.clear();
-      _putterTrackingSession.clear();
       final putterFrameBuffer = PutterFrameBuffer(capacity: 8);
       _frameAnalysisCount = 0;
-      var putterTrackedFrames = 0;
-      var putterDetectedFrames = 0;
-      const maxFailureSamples = 100;
-      var putterMissedFrameCount = 0;
-      var putterTrackingFailedCount = 0;
-      final putterMissedFrameIndices = <int>[];
-      final putterTrackingFailedIndices = <int>[];
-      var putterCurrentStreak = 0;
-      var putterLongestStreak = 0;
-      var putterTrackingGaps = 0;
-      int? putterFirstFrame;
-      int? putterLastFrame;
-
       MarkerCalibrationResult? calibration;
 
       final duration = videoController.value.duration;
 
       final analysisStopwatch = Stopwatch()..start();
       var imageInspectMicroseconds = 0;
-      var putterDetectMicroseconds = 0;
       var imageDecodeMicroseconds = 0;
 
       await for (final frame in FrameExtractor.extractFrames(
@@ -1182,82 +1162,6 @@ class _CameraScreenState extends State<CameraScreen>
           );
         }
 
-        if (const bool.fromEnvironment(
-              "ENABLE_LEGACY_PUTTER_TRACKING",
-              defaultValue: false,
-            ) &&
-            !_ballTracker.movementStarted) {
-          // Search the near side of the initial ball position.
-          // Keep a safety margin toward the far side for impact detection.
-          const putterRoiMargin = 200.0;
-          final putterRoiMinY = (ballPosition.dy - putterRoiMargin)
-              .floor()
-              .clamp(0, decodedImage.height);
-
-          final putterDetectStopwatch = Stopwatch()..start();
-          final putterCandidates = PutterDetector.detectDecoded(
-            decodedImage,
-            frameIndex: videoFrameIndex,
-            minY: putterRoiMinY,
-          );
-          putterDetectStopwatch.stop();
-          putterDetectMicroseconds += putterDetectStopwatch.elapsedMicroseconds;
-
-          if (putterCandidates.isNotEmpty) {
-            putterDetectedFrames++;
-          } else {
-            putterMissedFrameCount++;
-            if (putterMissedFrameIndices.length < maxFailureSamples) {
-              putterMissedFrameIndices.add(_frameAnalysisCount);
-            }
-          }
-
-          final trackedPutter = _putterTracker.track(
-            frameIndex: videoFrameIndex,
-            timestamp: frame.position,
-            candidates: putterCandidates,
-          );
-
-          if (trackedPutter == null && putterCandidates.isNotEmpty) {
-            putterTrackingFailedCount++;
-            if (putterTrackingFailedIndices.length < maxFailureSamples) {
-              putterTrackingFailedIndices.add(_frameAnalysisCount);
-            }
-          }
-
-          if (trackedPutter != null) {
-            _putterTrackingSession.add(trackedPutter);
-            putterTrackedFrames++;
-            putterCurrentStreak++;
-            putterFirstFrame ??= _frameAnalysisCount;
-            putterLastFrame = _frameAnalysisCount;
-
-            if (putterCurrentStreak > putterLongestStreak) {
-              putterLongestStreak = putterCurrentStreak;
-            }
-          } else {
-            if (putterCurrentStreak > 0) {
-              putterTrackingGaps++;
-            }
-            putterCurrentStreak = 0;
-          }
-
-          DebugLog.print(
-            'AUTO PUTTER TRACKING '
-            'frame=$_frameAnalysisCount '
-            'time=${frame.position.inMilliseconds}ms '
-            'result=$trackedPutter',
-          );
-
-          DebugLog.print(
-            'AUTO PUTTER DETECTION '
-            'frame=$_frameAnalysisCount '
-            'time=${frame.position.inMilliseconds}ms '
-            'count=${putterCandidates.length} '
-            'best=${putterCandidates.isEmpty ? null : putterCandidates.first}',
-          );
-        }
-
         if (_frameAnalysisCount >= 370 && _frameAnalysisCount <= 395) {
           DebugLog.print(
             'INITIAL CANDIDATES '
@@ -1387,6 +1291,12 @@ class _CameraScreenState extends State<CameraScreen>
             'speed=${preMovementSpeed?.speedPixelsPerSecond.toStringAsFixed(2) ?? "N/A"}px/s',
           );
 
+          _putterTrackingReport =
+              'パター解析結果\n'
+              'ボール移動開始: フレーム$movementStartFrame\n'
+              '追跡成功: ${bufferedSession.length}フレーム\n'
+              '推定速度: 計測できませんでした';
+
           if (calibration != null && preMovementSpeed != null) {
             final previousPutter = bufferedSession.putters
                 .where((p) => p.frameIndex == preMovementSpeed.previousFrame)
@@ -1419,6 +1329,13 @@ class _CameraScreenState extends State<CameraScreen>
                     currentWorld.yMillimeters - previousWorld.yMillimeters;
                 final distanceMm = math.sqrt(dx * dx + dy * dy);
                 final speedMps = distanceMm / dt / 1000.0;
+
+                _putterTrackingReport =
+                    'パター解析結果\n'
+                    'ボール移動開始: フレーム$movementStartFrame\n'
+                    '追跡成功: ${bufferedSession.length}フレーム\n'
+                    '計測フレーム: ${previousPutter.frameIndex} → ${currentPutter.frameIndex}\n'
+                    'インパクト直前の推定速度: ${speedMps.toStringAsFixed(3)} m/s';
 
                 debugPrint(
                   'PUTTER BUFFER REAL SPEED '
@@ -1561,11 +1478,6 @@ class _CameraScreenState extends State<CameraScreen>
         'averageMs=${_frameAnalysisCount == 0 ? 0 : (imageDecodeMicroseconds / 1000 / _frameAnalysisCount).toStringAsFixed(2)}',
       );
       debugPrint(
-        'PUTTER DETECT TIMING '
-        'totalMs=${(putterDetectMicroseconds / 1000).toStringAsFixed(1)} '
-        'averageMs=${_frameAnalysisCount == 0 ? 0 : (putterDetectMicroseconds / 1000 / _frameAnalysisCount).toStringAsFixed(2)}',
-      );
-      debugPrint(
         "IMAGE INSPECT TIMING totalMs=${(imageInspectMicroseconds / 1000).toStringAsFixed(1)} averageMs=${_frameAnalysisCount == 0 ? 0 : (imageInspectMicroseconds / 1000 / _frameAnalysisCount).toStringAsFixed(2)}",
       );
       debugPrint(
@@ -1580,75 +1492,6 @@ class _CameraScreenState extends State<CameraScreen>
         'frames=$_frameAnalysisCount '
         'tracked=${_trackingSession.length}',
       );
-
-      debugPrint(
-        'PUTTER TRACKING SUMMARY '
-        'detected=$putterDetectedFrames '
-        'tracked=$putterTrackedFrames '
-        'total=$_frameAnalysisCount '
-        'longest=$putterLongestStreak '
-        'gaps=$putterTrackingGaps '
-        'first=$putterFirstFrame '
-        'last=$putterLastFrame',
-      );
-
-      debugPrint(
-        "PUTTER MISSED FRAMES "
-        "count=$putterMissedFrameCount "
-        "indices=$putterMissedFrameIndices",
-      );
-
-      debugPrint(
-        'PUTTER TRACKING FAILED FRAMES '
-        'count=$putterTrackingFailedCount '
-        'indices=$putterTrackingFailedIndices',
-      );
-
-      _putterTrackingReport =
-          'パター追跡結果\\n'
-          '総フレーム: $_frameAnalysisCount\\n'
-          '検出成功: $putterDetectedFrames\\n'
-          '追跡成功: $putterTrackedFrames\\n'
-          '検出失敗 ($putterMissedFrameCount): '
-          '$putterMissedFrameIndices\\n'
-          '追跡失敗 ($putterTrackingFailedCount): '
-          '$putterTrackingFailedIndices';
-
-      final putterMetrics = _putterTrackingSession.latestMetrics();
-
-      debugPrint(
-        'PUTTER SPEED '
-        'tracked=${_putterTrackingSession.length} '
-        'speed=${putterMetrics?.speedPixelsPerSecond.toStringAsFixed(2) ?? "N/A"}px/s',
-      );
-
-      final putterPeak = _putterTrackingSession.peakSpeed();
-
-      debugPrint(
-        'PUTTER PEAK SPEED '
-        'previousFrame=${putterPeak?.previousFrame ?? "N/A"} '
-        'frame=${putterPeak?.currentFrame ?? "N/A"} '
-        'speed=${putterPeak?.speedPixelsPerSecond.toStringAsFixed(2) ?? "N/A"}px/s',
-      );
-
-      if (putterPeak != null) {
-        debugPrint('===== PUTTER PEAK CONTEXT =====');
-
-        final putterSpeeds = _putterTrackingSession.allFrameSpeeds();
-
-        for (final item in putterSpeeds) {
-          if ((item.currentFrame - putterPeak.currentFrame).abs() <= 5) {
-            debugPrint(
-              'PUTTER FRAME SPEED '
-              'previousFrame=${item.previousFrame} '
-              'frame=${item.currentFrame} '
-              'speed=${item.speedPixelsPerSecond.toStringAsFixed(2)}px/s',
-            );
-          }
-        }
-
-        debugPrint('===== END PUTTER PEAK CONTEXT =====');
-      }
 
       final peak = _trackingSession.peakMetrics();
       final smoothedPeak = _trackingSession.smoothedPeakMetrics();
