@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import '../services/ball_search_roi.dart';
 import 'dart:io';
 import 'dart:typed_data';
@@ -27,6 +28,7 @@ import '../services/putter_detector.dart';
 import '../services/putter_tracker.dart';
 import '../services/marker_detector.dart';
 import '../services/marker_calibration.dart';
+import '../services/perspective_calibration.dart';
 import '../services/real_speed_calculator.dart';
 import 'frame_preview_dialog.dart';
 import 'video_player_view.dart';
@@ -1180,7 +1182,11 @@ class _CameraScreenState extends State<CameraScreen>
           );
         }
 
-        if (const bool.fromEnvironment("ENABLE_LEGACY_PUTTER_TRACKING", defaultValue: false) && !_ballTracker.movementStarted) {
+        if (const bool.fromEnvironment(
+              "ENABLE_LEGACY_PUTTER_TRACKING",
+              defaultValue: false,
+            ) &&
+            !_ballTracker.movementStarted) {
           // Search the near side of the initial ball position.
           // Keep a safety margin toward the far side for impact detection.
           const putterRoiMargin = 200.0;
@@ -1380,6 +1386,51 @@ class _CameraScreenState extends State<CameraScreen>
             'frame=${preMovementSpeed?.currentFrame ?? "N/A"} '
             'speed=${preMovementSpeed?.speedPixelsPerSecond.toStringAsFixed(2) ?? "N/A"}px/s',
           );
+
+          if (calibration != null && preMovementSpeed != null) {
+            final previousPutter = bufferedSession.putters
+                .where((p) => p.frameIndex == preMovementSpeed.previousFrame)
+                .firstOrNull;
+            final currentPutter = bufferedSession.putters
+                .where((p) => p.frameIndex == preMovementSpeed.currentFrame)
+                .firstOrNull;
+
+            if (previousPutter != null && currentPutter != null) {
+              final previousWorld = PerspectiveCalibration.imageToMillimeters(
+                calibration: calibration,
+                x: previousPutter.centerX,
+                y: previousPutter.centerY,
+              );
+              final currentWorld = PerspectiveCalibration.imageToMillimeters(
+                calibration: calibration,
+                x: currentPutter.centerX,
+                y: currentPutter.centerY,
+              );
+
+              final dt =
+                  (currentPutter.timestamp - previousPutter.timestamp)
+                      .inMicroseconds /
+                  Duration.microsecondsPerSecond;
+
+              if (previousWorld != null && currentWorld != null && dt > 0) {
+                final dx =
+                    currentWorld.xMillimeters - previousWorld.xMillimeters;
+                final dy =
+                    currentWorld.yMillimeters - previousWorld.yMillimeters;
+                final distanceMm = math.sqrt(dx * dx + dy * dy);
+                final speedMps = distanceMm / dt / 1000.0;
+
+                debugPrint(
+                  'PUTTER BUFFER REAL SPEED '
+                  'previousFrame=${previousPutter.frameIndex} '
+                  'frame=${currentPutter.frameIndex} '
+                  'distance=${distanceMm.toStringAsFixed(3)}mm '
+                  'dt=${dt.toStringAsFixed(6)}s '
+                  'speed=${speedMps.toStringAsFixed(3)}m/s',
+                );
+              }
+            }
+          }
 
           debugPrint(
             'PUTTER BUFFER FROZEN '
