@@ -978,6 +978,7 @@ class _CameraScreenState extends State<CameraScreen>
       final analysisStopwatch = Stopwatch()..start();
       var imageInspectMicroseconds = 0;
       var imageDecodeMicroseconds = 0;
+      var putterBufferMicroseconds = 0;
 
       await for (final frame in FrameExtractor.extractFrames(
         videoPath: videoPath,
@@ -1151,15 +1152,30 @@ class _CameraScreenState extends State<CameraScreen>
         _frameAnalysisCount++;
 
         if (!_ballTracker.movementStarted) {
-          putterFrameBuffer.add(
-            image: decodedImage,
-            frameIndex: videoFrameIndex,
-            timestamp: frame.position,
+          final putterBufferStopwatch = Stopwatch()..start();
+          final putterMinY =
+              (ballPosition.dy - 200).floor().clamp(0, decodedImage.height);
+
+          final putterImage = FrameExtractor.decodeFrameRoi(
+            frame,
             minX: 0,
-            minY: (ballPosition.dy - 200).floor(),
+            minY: putterMinY,
             maxX: decodedImage.width,
             maxY: decodedImage.height,
           );
+
+          if (putterImage != null) {
+            putterFrameBuffer.addCropped(
+              image: putterImage,
+              frameIndex: videoFrameIndex,
+              timestamp: frame.position,
+              originX: 0,
+              originY: putterMinY,
+            );
+          }
+
+          putterBufferStopwatch.stop();
+          putterBufferMicroseconds += putterBufferStopwatch.elapsedMicroseconds;
         }
 
         if (_frameAnalysisCount >= 370 && _frameAnalysisCount <= 395) {
@@ -1472,6 +1488,10 @@ class _CameraScreenState extends State<CameraScreen>
       }
 
       analysisStopwatch.stop();
+      debugPrint(
+        'PUTTER BUFFER TIMING '
+        'totalMs=${(putterBufferMicroseconds / 1000).toStringAsFixed(1)}',
+      );
       debugPrint(
         'IMAGE DECODE TIMING '
         'totalMs=${(imageDecodeMicroseconds / 1000).toStringAsFixed(1)} '
