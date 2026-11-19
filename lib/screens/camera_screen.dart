@@ -991,16 +991,25 @@ class _CameraScreenState extends State<CameraScreen>
         }
 
         final imageDecodeStopwatch = Stopwatch()..start();
-        final decodedImage = FrameExtractor.decodeFrame(frame);
+        final decodedImage = _frameAnalysisCount == 0
+            ? FrameExtractor.decodeFrame(frame)
+            : null;
         imageDecodeStopwatch.stop();
         imageDecodeMicroseconds += imageDecodeStopwatch.elapsedMicroseconds;
 
-        if (decodedImage == null) {
+        if (_frameAnalysisCount == 0 && decodedImage == null) {
           continue;
         }
 
+        final frameWidth = frame.width ?? decodedImage?.width;
+        final frameHeight = frame.height ?? decodedImage?.height;
+
+        if (frameWidth == null || frameHeight == null) {
+          throw StateError('Video frame dimensions are missing.');
+        }
+
         // BGRA diagnostic: save only the first decoded frame.
-        if (_frameAnalysisCount == 0) {
+        if (_frameAnalysisCount == 0 && decodedImage != null) {
           final diagnosticPath =
               '${Directory.systemTemp.parent.path}/Documents/puttphysics_bgra_first_frame.png';
           final pngBytes = img.encodePng(decodedImage);
@@ -1057,18 +1066,38 @@ class _CameraScreenState extends State<CameraScreen>
             roiMargin;
 
         final imageInspectStopwatch = Stopwatch()..start();
-        final imageInfo = ImageInspector.inspectDecoded(
-          decodedImage,
-          debugFrameIndex: DebugLog.verbose ? videoFrameIndex : null,
-          minX: roiMinX.floor().clamp(0, decodedImage.width),
-          minY: roiMinY.floor().clamp(0, decodedImage.height),
-          maxX: roiMaxX.ceil().clamp(0, decodedImage.width),
-          maxY: roiMaxY.ceil().clamp(0, decodedImage.height),
-        );
+        final roiX1 = roiMinX.floor().clamp(0, frameWidth);
+        final roiY1 = roiMinY.floor().clamp(0, frameHeight);
+        final roiX2 = roiMaxX.ceil().clamp(0, frameWidth);
+        final roiY2 = roiMaxY.ceil().clamp(0, frameHeight);
+
+        final imageInfo = decodedImage != null
+            ? ImageInspector.inspectDecoded(
+                decodedImage,
+                debugFrameIndex: DebugLog.verbose ? videoFrameIndex : null,
+                minX: roiX1,
+                minY: roiY1,
+                maxX: roiX2,
+                maxY: roiY2,
+              )
+            : ImageInspector.inspectFrameRoi(
+                frame,
+                debugFrameIndex: DebugLog.verbose ? videoFrameIndex : null,
+                minX: roiX1,
+                minY: roiY1,
+                maxX: roiX2,
+                maxY: roiY2,
+              );
         imageInspectStopwatch.stop();
         imageInspectMicroseconds += imageInspectStopwatch.elapsedMicroseconds;
 
-        if (_frameAnalysisCount == 0) {
+        if (imageInfo == null) {
+          throw StateError(
+            'Ball ROI inspection failed at frame $videoFrameIndex.',
+          );
+        }
+
+        if (_frameAnalysisCount == 0 && decodedImage != null) {
           final saved = _confirmedMarkerPositions;
           final markerPositions = MarkerPosition.values;
 
@@ -1154,14 +1183,14 @@ class _CameraScreenState extends State<CameraScreen>
         if (!_ballTracker.movementStarted) {
           final putterBufferStopwatch = Stopwatch()..start();
           final putterMinY =
-              (ballPosition.dy - 200).floor().clamp(0, decodedImage.height);
+              (ballPosition.dy - 200).floor().clamp(0, frameHeight);
 
           final putterImage = FrameExtractor.decodeFrameRoi(
             frame,
             minX: 0,
             minY: putterMinY,
-            maxX: decodedImage.width,
-            maxY: decodedImage.height,
+            maxX: frameWidth,
+            maxY: frameHeight,
           );
 
           if (putterImage != null) {
